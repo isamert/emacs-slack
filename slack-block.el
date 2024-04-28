@@ -34,6 +34,12 @@
 (require 'slack-mrkdwn)
 (require 'slack-room)
 
+(defcustom slack-block-highlight-source nil
+  "If non-nil, highlight source blocks in messages.
+You need to install `language-detection' for this to work."
+  :type 'boolean
+  :group 'slack)
+
 (defvar slack-completing-read-function)
 (defvar slack-channel-button-keymap)
 (defvar slack-current-buffer)
@@ -113,7 +119,7 @@
    (block-id :initarg :block_id :type string)
    (join-url :initarg :join_url :type string)))
 
-(cl-defmethod slack-block-to-string ((this slack-call-layout-block) &optional option)
+(cl-defmethod slack-block-to-string ((this slack-call-layout-block) &optional _option)
   (concat "Join URL: " (oref this join-url)))
 
 (defun slack-create-call-layout-block (payload)
@@ -183,17 +189,42 @@
   (let ((text (mapconcat #'(lambda (element) (slack-block-to-string element option))
                          (oref this elements)
                          "")))
-    (propertize (concat text "\n")
-                'slack-defer-face #'(lambda (beg end)
-                                      (overlay-put (make-overlay beg end)
-                                                   'face 'slack-mrkdwn-code-block-face))
-                'face 'slack-mrkdwn-code-block-face)))
+    (unless slack-block-highlight-source
+      (cl-return-from slack-block-to-string
+        (propertize (concat text "\n")
+                    'slack-defer-face #'(lambda (beg end)
+                                          (overlay-put (make-overlay beg end)
+                                                       'face 'slack-mrkdwn-code-block-face))
+                    'face 'slack-mrkdwn-code-block-face)))
+    (pcase-let ((`(,lang ,hl-text) (slack-block-fontify-text-natively text)))
+      (concat
+       (propertize
+        (format "┌─ %s" lang)
+        'face 'font-lock-comment-face)
+       "\n"
+       (mapconcat
+        'identity
+        (mapcar
+         (lambda (s)
+           (propertize
+            (if (string= "" s) " " s)
+            'slack-defer-face #'(lambda (beg _end)
+                                  (let ((ov (make-overlay beg beg)))
+                                    (overlay-put
+                                     ov 'before-string
+                                     (propertize "│" 'face 'font-lock-comment-face))))))
+         (string-split hl-text "\n"))
+        "\n")
+       "\n"
+       (propertize
+        "└─"
+        'face 'font-lock-comment-face)))))
 
 (cl-defmethod slack-block-to-mrkdwn ((this slack-rich-text-preformatted) &optional option)
   (let ((text (mapconcat #'(lambda (element) (slack-block-to-mrkdwn element option))
                          (oref this elements)
                          "")))
-    (format "```%s```\n" text)))
+    (format "```\n%s\n\n```\n" text)))
 
 (defun slack-create-rich-text-preformatted (payload)
   (make-instance 'slack-rich-text-preformatted
@@ -1306,6 +1337,35 @@
         :headers (list (cons "Content-Type"
                              "application/json;charset=utf-8"))
         :success #'success)))))
+
+;;; Utils
+
+(defun slack-block-fontify-text-natively (text)
+  (let* ((map '((cpp c++-mode)
+                (clojure lisp-mode)
+                (csharp java-mode)
+                (emacslisp emacs-lisp-mode)
+                (matlab octave-mode)
+                (objc c-mode)
+                (shell shell-script-mode)
+                (visualbasic visual-basic-mode)
+                (xml sgml-mode)))
+         (language (language-detection-string
+                    (buffer-substring-no-properties (point-min) (point-max)))))
+    (let* ((lang (symbol-name language))
+           (ts (intern (concat lang "-ts-mode")))
+           (normal (intern (concat lang "-mode")))
+           (other (cadr (assoc language map)))
+           (mode (cond
+                  ((fboundp ts) ts)
+                  ((fboundp normal) normal)
+                  ((fboundp other) other))))
+      (with-temp-buffer
+        (insert text)
+        (delay-mode-hooks (funcall (or mode #'prog-mode)))
+        (font-lock-default-function mode)
+        (font-lock-default-fontify-region (point-min) (point-max) nil)
+        (cons (or lang "prog") (buffer-string))))))
 
 (provide 'slack-block)
 ;;; slack-block.el ends here
