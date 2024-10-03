@@ -668,8 +668,7 @@
 (defun slack-select-unread-rooms ()
   (interactive)
   (let* ((team (slack-team-select))
-         (room (slack-room-select
-                (cl-loop for team in (list team)
+         (rooms (cl-loop for team in (list team)
                          append (cl-remove-if
                                  #'(lambda (room)
                                      (or
@@ -677,8 +676,10 @@
                                       (slack-room-muted-p room team)))
                                  (append (slack-team-ims team)
                                          (slack-team-groups team)
-                                         (slack-team-channels team))))
-                team)))
+                                         (slack-team-channels team)))))
+         (room (if (car rooms)
+                   (slack-room-select rooms team)
+                 (error "No unread rooms"))))
     (slack-room-display room team)))
 
 (defun slack-select-rooms ()
