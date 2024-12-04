@@ -246,6 +246,7 @@
 
 (cl-defmethod slack-message-header ((this slack-message) team)
   (let* ((name (slack-message-sender-name this team))
+         (user-id (slack-message-sender-id this))
          (status (slack-message-user-status this team))
          (edited-at (slack-format-ts (slack-message-edited-at this)))
          (deleted-at (slack-format-ts (oref this deleted-at))))
@@ -254,7 +255,21 @@
                 (concat (propertize "image" 'display image 'face 'slack-profile-image-face)
                         " ")
               "")
-            (slack-message-put-header-property (concat name
+            (slack-message-put-header-property (concat (propertize
+                                                        name
+                                                        'mouse-face 'highlight
+                                                        'local-map (let ((map (make-sparse-keymap))
+                                                                         (fn `(lambda ()
+                                                                                (interactive)
+                                                                                (slack-buffer-display
+                                                                                 (slack-create-user-profile-buffer ,team ,user-id)))))
+                                                                     (define-key
+                                                                      map [mouse-1]
+                                                                      fn)
+                                                                     (define-key
+                                                                      map (kbd "RET")
+                                                                      fn)
+                                                                     map))
                                                        (if (slack-string-blankp status)
                                                            ""
                                                          (concat " " status))
