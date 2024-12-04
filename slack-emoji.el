@@ -135,12 +135,6 @@ This runs asynchronously, splitting the emojis in batches of `slack-emoji-job-ba
                     (list
                      `(lambda ()
                         (when (functionp ',after-success) (funcall ',after-success slack-emoji-paths))
-                        ;; https://github.com/iqbalansari/emacs-emojify/issues/103
-                        ;; when the size of the user defined emojis is too large,
-                        ;; emojify creates a regex larger than emacs can handle
-                        ;; but it works fine with its simple (github) style regex
-                        (when (> (length slack-emoji-paths) 1500)
-                          (setq emojify--user-emojis-regexp nil))
                         (setq slack-emoji-paths nil)
                         )))
                    (setq slack-emoji-jobs-to-run it)))

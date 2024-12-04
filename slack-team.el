@@ -244,7 +244,13 @@ use `slack-change-current-team' to change `slack-current-team'"
       (when (timerp (oref team emoji-download-watch-timer))
         (cancel-timer (oref team emoji-download-watch-timer))
         (oset team emoji-download-watch-timer nil)
-        (emojify-create-emojify-emojis t))))
+        (emojify-create-emojify-emojis t)
+        ;; https://github.com/iqbalansari/emacs-emojify/issues/103
+        ;; when the size of the user defined emojis is too large,
+        ;; emojify creates a regex larger than emacs can handle
+        ;; but it works fine with its simple (github) style regex
+        (when (> (length paths) 1500) (setq emojify--user-emojis-regexp nil))
+        )))
 
 (cl-defmethod slack-team-token ((this slack-team))
   (oref this token))
