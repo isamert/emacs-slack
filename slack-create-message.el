@@ -90,30 +90,33 @@
       (plist-put payload :channel room))
     (cl-labels
         ((create-message
-          (payload)
-          (let ((subtype (plist-get payload :subtype)))
-            (cond
-             ((plist-member payload :reply_to)
-              (apply #'make-instance 'slack-reply
-                     (slack-collect-slots 'slack-reply payload)))
-             ((or (and subtype (or (string-equal "reply_broadcast" subtype)
-                                   (string= "thread_broadcast" subtype)))
-                  (plist-get payload :reply_broadcast)
-                  (plist-get payload :is_thread_broadcast))
-              (slack-reply-broadcast-message-create payload))
-             ((or (and subtype (string= "bot_message" subtype))
-                  (and (plist-member payload :bot_id)
-                       (plist-get payload :bot_id)))
-              (apply #'slack-bot-message "bot-msg"
-                     (slack-collect-slots 'slack-bot-message payload)))
-             ((and (plist-member payload :user) (plist-get payload :user))
-              (apply #'slack-user-message "user-msg"
-                     (slack-collect-slots 'slack-user-message payload)))
-             (t (progn
-                  (slack-log (format "Unknown Message Type: %s" payload)
-                             team :level 'debug)
-                  (apply #'slack-message "unknown message"
-                         (slack-collect-slots 'slack-message payload))))))))
+           (payload)
+           (let ((subtype (plist-get payload :subtype)))
+             (cond
+              ((plist-member payload :reply_to)
+               (apply #'make-instance 'slack-reply
+                      (slack-collect-slots 'slack-reply payload)))
+              ;; sometimes we have reply_broadcast from bots. These
+              ;; don't have a :user parameter, so the reply_broadcast
+              ;; case cannot handle them: keep the bot case before
+              ((or (and subtype (string= "bot_message" subtype))
+                   (and (plist-member payload :bot_id)
+                        (plist-get payload :bot_id)))
+               (apply #'slack-bot-message "bot-msg"
+                      (slack-collect-slots 'slack-bot-message payload)))
+              ((or (and subtype (or (string-equal "reply_broadcast" subtype)
+                                    (string= "thread_broadcast" subtype)))
+                   (plist-get payload :reply_broadcast)
+                   (plist-get payload :is_thread_broadcast))
+               (slack-reply-broadcast-message-create payload))
+              ((and (plist-member payload :user) (plist-get payload :user))
+               (apply #'slack-user-message "user-msg"
+                      (slack-collect-slots 'slack-user-message payload)))
+              (t (progn
+                   (slack-log (format "Unknown Message Type: %s" payload)
+                              team :level 'debug)
+                   (apply #'slack-message "unknown message"
+                          (slack-collect-slots 'slack-message payload))))))))
 
       (let ((message (create-message payload)))
         (when message

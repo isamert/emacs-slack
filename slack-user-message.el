@@ -41,6 +41,9 @@
 (cl-defmethod slack-thread-message-p ((_this slack-reply-broadcast-message))
   t)
 
+(cl-defmethod slack-message-user-ids ((m slack-reply-broadcast-message))
+  (list (oref m user)))
+
 (defvar slack-user-message-keymap
   (let ((keymap (make-sparse-keymap)))
     keymap))
