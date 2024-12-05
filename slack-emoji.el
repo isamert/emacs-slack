@@ -124,7 +124,7 @@ This runs asynchronously, splitting the emojis in batches of `slack-emoji-job-ba
                                           url
                                           path
                                           ,team
-                                          :success (lexical-let ((e emoji))
+                                          :success (let ((e emoji))
                                                      (lambda ()
                                                        (funcall ',(lambda (emoji) (push-new-emoji emoji)) e))))
                                          )
