@@ -136,5 +136,7 @@
         (let ((buf (slack-create-user-profile-buffer team (plist-get selected :id))))
           (slack-buffer-display buf)))))
 
+(define-key slack-user-profile-buffer-mode-map (kbd "q") 'bury-buffer)
+
 (provide 'slack-user-profile-buffer)
 ;;; slack-user-profile-buffer.el ends here

@@ -255,30 +255,33 @@
                 (concat (propertize "image" 'display image 'face 'slack-profile-image-face)
                         " ")
               "")
-            (slack-message-put-header-property (concat (propertize
-                                                        name
-                                                        'mouse-face 'highlight
-                                                        'local-map (let ((map (make-sparse-keymap))
-                                                                         (fn `(lambda ()
-                                                                                (interactive)
-                                                                                (slack-buffer-display
-                                                                                 (slack-create-user-profile-buffer ,team ,user-id)))))
-                                                                     (define-key
-                                                                      map [mouse-1]
-                                                                      fn)
-                                                                     (define-key
-                                                                      map (kbd "RET")
-                                                                      fn)
-                                                                     map))
-                                                       (if (slack-string-blankp status)
-                                                           ""
-                                                         (concat " " status))
-                                                       (if deleted-at
-                                                           (concat " deleted_at: " deleted-at)
-                                                         "")
-                                                       (if edited-at
-                                                           (concat " edited_at: " edited-at)
-                                                         "")))
+            (slack-message-put-header-property
+             (concat
+              ;; make the user name clickable to navigate to the user profile
+              (propertize
+               name
+               'mouse-face 'highlight
+               'local-map (let ((map (make-sparse-keymap))
+                                (fn `(lambda ()
+                                       (interactive)
+                                       (slack-buffer-display
+                                        (slack-create-user-profile-buffer ,team ,user-id)))))
+                            (define-key
+                             map [mouse-1]
+                             fn)
+                            (define-key
+                             map (kbd "RET")
+                             fn)
+                            map))
+              (if (slack-string-blankp status)
+                  ""
+                (concat " " status))
+              (if deleted-at
+                  (concat " deleted_at: " deleted-at)
+                "")
+              (if edited-at
+                  (concat " edited_at: " edited-at)
+                "")))
             (if (slack-message-starred-p this)
                 " :star:"
               ""))))
