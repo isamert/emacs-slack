@@ -202,14 +202,23 @@
                 display-name
               real-name))))
 
+(defun slack-user-local-time (user)
+  "Get the USER local time as a AM/PM string."
+  (let ((offset (/ (plist-get user :tz_offset) (* 60 60))))
+    (if (<= 0 offset)
+        (format-time-string "%I:%M %p" (time-subtract (current-time) (encode-time 0 0 offset 0 0 0)))
+      (format-time-string "%I:%M %p" (time-add (current-time) (encode-time 0 0 offset 0 0 0)))
+      )))
+
 (defun slack-user-timezone (user)
   (let ((offset (/ (plist-get user :tz_offset) (* 60 60))))
-    (format "%s, %s"
+    (format "%s, %s (Their time is %s)"
             (or (plist-get user :tz)
                 (plist-get user :tz_label))
             (if (<= 0 offset)
                 (format "+%s hour" offset)
-              (format "%s hour" offset)))))
+              (format "%s hour" offset))
+            (slack-user-local-time user))))
 
 (defun slack-user-property-to-str (value title)
   (and value (< 0 (length value))

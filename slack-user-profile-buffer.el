@@ -94,6 +94,7 @@
                              'face 'slack-user-profile-header-face))
          (presence (slack-user-property-to-str (slack-user-presence user team)
                                                "Presence"))
+         (pronouns (slack-user-property-to-str (plist-get profile :pronouns) "Pronouns"))
          (status (slack-user-property-to-str (slack-user--status user) "Status"))
          (timezone (slack-user-property-to-str (slack-user-timezone user) "Timezone"))
          (title (slack-user-property-to-str (plist-get profile :title) "Title"))
@@ -102,7 +103,7 @@
          (skype (slack-user-property-to-str (plist-get profile :skype) "Skype"))
          (body (mapconcat #'identity
                           (cl-remove-if #'null
-                                        (list presence status title timezone email phone skype))
+                                        (list presence pronouns status title timezone email phone skype))
                           "\n")))
     (format "%s%s\n%s"
             header

@@ -261,17 +261,21 @@
               (propertize
                name
                'mouse-face 'highlight
+               'help-echo (let ((user (slack-user--find user-id team)))
+                            (lambda (_window _string _pos)
+                              (message "%s" (format "%s - %s" (slack-user-local-time user) (plist-get (plist-get user :profile) :pronouns)))
+                              (format "%s - %s" (slack-user-local-time user) (plist-get (plist-get user :profile) :pronouns))))
                'local-map (let ((map (make-sparse-keymap))
-                                (fn `(lambda ()
-                                       (interactive)
-                                       (slack-buffer-display
-                                        (slack-create-user-profile-buffer ,team ,user-id)))))
+                                (go-to-user `(lambda ()
+                                               (interactive)
+                                               (slack-buffer-display
+                                                (slack-create-user-profile-buffer ,team ,user-id)))))
                             (define-key
                              map [mouse-1]
-                             fn)
+                             go-to-user)
                             (define-key
                              map (kbd "RET")
-                             fn)
+                             go-to-user)
                             map))
               (if (slack-string-blankp status)
                   ""
