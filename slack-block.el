@@ -346,11 +346,15 @@ You need to install `language-detection' for this to work.")
    (code :initarg :code :type boolean)))
 
 (cl-defmethod slack-block-to-string ((this slack-rich-text-element-style) text)
+  "Add property to TEXT according to THIS rich text."
   (let ((face (progn (or (and (oref this bold) 'slack-mrkdwn-bold-face)
                          (and (oref this italic) 'slack-mrkdwn-italic-face)
                          (and (oref this strike) 'slack-mrkdwn-strike-face)
                          (and (oref this code) 'slack-mrkdwn-code-face)))))
-    (propertize text 'face face)))
+    (propertize text
+                'face face
+                ;; apparently font-lock is enabled with lui and the 'face ends up ignored
+                'font-lock-face face)))
 
 (cl-defmethod slack-block-to-mrkdwn ((this slack-rich-text-element-style) text)
   (or (and (oref this bold) (format "*%s*" text))
