@@ -30,6 +30,7 @@
 (require 'slack-user)
 (require 'slack-im)
 (require 'slack-image)
+(require 'slack-websocket)
 
 (defvar slack-open-direct-message-keymap)
 (defvar slack-completing-read-function)
@@ -40,6 +41,7 @@
 
 (defun slack-create-user-profile-buffer (team user-id)
   "Create User Profile Buffer of USER-ID in TEAM."
+  (slack-team-send-presence-query team (list user-id))
   (slack-if-let* ((buf (slack-buffer-find 'slack-user-profile-buffer team user-id)))
       buf
     (slack-user-profile-buffer :team-id (oref team id)

@@ -52,6 +52,7 @@
 (require 'slack-room-event)
 (require 'slack-thread-event)
 (require 'slack-defcustoms)
+(require 'dash)
 
 (defconst slack-api-test-url "https://slack.com/api/api.test")
 (defconst slack-rtm-connect-url "https://slack.com/api/rtm.connect")
@@ -168,7 +169,12 @@ what is happening in your team."
   (string= "ping" (plist-get payload :type)))
 
 (defun slack-ws-payload-presence-sub-p (payload)
+  "Check if websocket PAYLOAD is of type presence_sub."
   (string= "presence_sub" (plist-get payload :type)))
+
+(defun slack-ws-payload-presence-query-p (payload)
+  "Check if websocket PAYLOAD is of type presence_query."
+  (string= "presence_query" (plist-get payload :type)))
 
 (defun slack-ws-retryable-payload-p (payload)
   (and (not (slack-ws-payload-ping-p payload))
@@ -544,21 +550,21 @@ TEAM is one of `slack-teams'"
                                                    (slack-buffer-name buf)))))
       (cl-labels
           ((update-typing (user)
-                          (let ((limit (+ 3 (float-time))))
-                            (slack-if-let* ((typing (oref team typing))
-                                            (typing-room (slack-room-find (oref typing room-id) team))
-                                            (same-room-p (string= (oref room id) (oref typing-room id))))
-                                (progn
-                                  (slack-typing-set-limit typing limit)
-                                  (slack-typing-add-user typing user limit))
-                              (oset team
-                                    typing
-                                    (slack-typing-create room limit user))
-                              (oset team
-                                    typing-timer
-                                    (run-with-timer t 1
-                                                    #'slack-typing-display
-                                                    (slack-team-id team)))))))
+             (let ((limit (+ 3 (float-time))))
+               (slack-if-let* ((typing (oref team typing))
+                               (typing-room (slack-room-find (oref typing room-id) team))
+                               (same-room-p (string= (oref room id) (oref typing-room id))))
+                   (progn
+                     (slack-typing-set-limit typing limit)
+                     (slack-typing-add-user typing user limit))
+                 (oset team
+                       typing
+                       (slack-typing-create room limit user))
+                 (oset team
+                       typing-timer
+                       (run-with-timer t 1
+                                       #'slack-typing-display
+                                       (slack-team-id team)))))))
         (slack-if-let*
             ((user (slack-user-name user-id team)))
             (update-typing user)
@@ -657,9 +663,10 @@ TEAM is one of `slack-teams'"
                       team))
 
 (defun slack-ws-handle-presence-change (payload team)
-  (let ((id (plist-get payload :user))
-        (presence (plist-get payload :presence)))
-    (puthash id presence (oref team presence))))
+  "Handle user presence changes for RTM API."
+  (let ((presence (plist-get payload :presence))
+        (users (plist-get payload :users)))
+    (--each users (puthash it presence (oref team presence)))))
 
 (defun slack-ws-handle-bot (payload team)
   (let ((bot (plist-get payload :bot)))
@@ -847,8 +854,12 @@ TEAM is one of `slack-teams'"
                                               (oref team usergroups))))))
 
 (cl-defmethod slack-team-send-message ((this slack-team) message)
+  "Send MESSAGE to THIS team websocket.
+Note that the message type needs to be whitelisted in the or
+statement to get a message id the ws can respond to."
   (if (or (slack-ws-payload-ping-p message)
-          (slack-ws-payload-presence-sub-p message))
+          (slack-ws-payload-presence-sub-p message)
+          (slack-ws-payload-presence-query-p message))
       (progn
         (slack-team-inc-message-id this)
         (with-slots (ws) this
@@ -885,55 +896,62 @@ TEAM is one of `slack-teams'"
                                    :type type
                                    :ids ids))))
 
+(cl-defmethod slack-team-send-presence-query ((this slack-team) user-ids)
+  "Request the USER-IDS presence via websocket rtm api of THIS team."
+  (slack-team-send-message this
+                           (list :id (oref this message-id)
+                                 :type "presence_query"
+                                 :ids user-ids)))
+
 (defun slack-authorize (team &optional error-callback success-callback)
   (let ((authorize-request (oref team authorize-request)))
     (if (and authorize-request (not (request-response-done-p authorize-request)))
         (slack-log "Authorize Already Requested" team)
       (cl-labels
           ((on-error (&key error-thrown symbol-status response data)
-                     (oset team authorize-request nil)
-                     (slack-log (format "Authorize Failed: %s" error-thrown)
-                                team)
-                     (when (functionp error-callback)
-                       (funcall error-callback
-                                :error-thrown error-thrown
-                                :symbol-status symbol-status
-                                :response response
-                                :data data)))
+             (oset team authorize-request nil)
+             (slack-log (format "Authorize Failed: %s" error-thrown)
+                        team)
+             (when (functionp error-callback)
+               (funcall error-callback
+                        :error-thrown error-thrown
+                        :symbol-status symbol-status
+                        :response response
+                        :data data)))
            (on-success (&key data &allow-other-keys)
-                       (oset team authorize-request nil)
-                       (slack-request-handle-error
-                        (data "slack-authorize")
-                        (slack-log "Authorization Finished" team)
-                        (if success-callback
-                            (funcall success-callback data)
-                          (cl-labels
-                              ((on-emoji-download (paths)
-                                                  (oset team
-                                                        emoji-download-watch-timer
-                                                        (run-with-idle-timer 5 t
-                                                                             #'slack-team-watch-emoji-download-complete
-                                                                             team paths)))
-                               (on-open ()
-                                        (slack-conversations-list-update team)
-                                        ;; (slack-user-list-update team)
-                                        (slack-dnd-status-team-info team)
-                                        (when slack-buffer-emojify
-                                          (slack-download-emoji team #'on-emoji-download))
-                                        (slack-command-list-update team)
-                                        (slack-usergroup-list-update team)
-                                        (slack-update-modeline)))
-                            (let ((self (plist-get data :self))
-                                  (team-data (plist-get data :team)))
-                              (oset team id (plist-get team-data :id))
-                              (oset team name (plist-get team-data :name))
-                              (oset team self self)
-                              (oset team self-id (plist-get self :id))
-                              (oset team self-name (plist-get self :name))
-                              (slack-team-set-ws-url team (plist-get data :url))
-                              (oset team domain (plist-get team-data :domain)))
-                            (puthash (oref team id) (oref team token) slack-tokens-by-id)
-                            (slack-team-open-ws team :on-open #'on-open))))))
+             (oset team authorize-request nil)
+             (slack-request-handle-error
+              (data "slack-authorize")
+              (slack-log "Authorization Finished" team)
+              (if success-callback
+                  (funcall success-callback data)
+                (cl-labels
+                    ((on-emoji-download (paths)
+                       (oset team
+                             emoji-download-watch-timer
+                             (run-with-idle-timer 5 t
+                                                  #'slack-team-watch-emoji-download-complete
+                                                  team paths)))
+                     (on-open ()
+                       (slack-conversations-list-update team)
+                       ;; (slack-user-list-update team)
+                       (slack-dnd-status-team-info team)
+                       (when slack-buffer-emojify
+                         (slack-download-emoji team #'on-emoji-download))
+                       (slack-command-list-update team)
+                       (slack-usergroup-list-update team)
+                       (slack-update-modeline)))
+                  (let ((self (plist-get data :self))
+                        (team-data (plist-get data :team)))
+                    (oset team id (plist-get team-data :id))
+                    (oset team name (plist-get team-data :name))
+                    (oset team self self)
+                    (oset team self-id (plist-get self :id))
+                    (oset team self-name (plist-get self :name))
+                    (slack-team-set-ws-url team (plist-get data :url))
+                    (oset team domain (plist-get team-data :domain)))
+                  (puthash (oref team id) (oref team token) slack-tokens-by-id)
+                  (slack-team-open-ws team :on-open #'on-open))))))
         (let ((request (slack-request
                         (slack-request-create
                          slack-rtm-connect-url
