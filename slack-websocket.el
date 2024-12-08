@@ -283,9 +283,10 @@ same time as other updates and rate limit the token.")
   (setq slack--lock-user-list-update nil))
 
 (defun slack--update-user-list-with-lock (team)
-  "Call slack-user-list-update for TEAM locking the operation via
- `slack--lock-user-list-update' to avoid multiple calls that rate
- limit the token and make emacs-slack unusable."
+  "Call slack-user-list-update for TEAM.
+Locking the operation via `slack--lock-user-list-update' to avoid
+ multiple calls that rate limit the token and make emacs-slack
+ unusable."
   (unless slack--lock-user-list-update
     (slack-user-list-update team)
     (setq slack--lock-user-list-update t)
@@ -299,7 +300,8 @@ This also closes unnecessary buffers and refresh message buffer contents."
     ;; attempt at updating the user list in a delayed manner so to not hit user limit
     (run-with-timer 3 nil #'slack--update-user-list-with-lock
                     team)
-
+    ;; we don't care if our user list is stale at this point, we try to sub and query presence
+    (slack-team-presence-query-and-subscribe team)
     (slack-dnd-status-team-info team)
     (when (hash-table-p (oref team slack-message-buffer))
       (cl-loop for sb in (hash-table-values (oref team slack-message-buffer))
@@ -885,17 +887,12 @@ statement to get a message id the ws can respond to."
           (slack-team-disconnect selected)
           (message "Delete %s from `slack-teams'" (oref selected name))))))
 
-(cl-defmethod slack-team-send-presence-sub ((this slack-team))
-  (let ((type "presence_sub")
-        (ids (let ((result))
-               (cl-loop for im in (slack-team-ims this)
-                        do (when (slack-room-open-p im)
-                             (push (oref im user) result)))
-               result)))
-    (slack-team-send-message this
-                             (list :id (oref this message-id)
-                                   :type type
-                                   :ids ids))))
+(cl-defmethod slack-team-send-presence-subscription ((this slack-team) user-ids)
+  "Subscribe to the user presence for THIS team USER-IDS."
+  (slack-team-send-message this
+                           (list :id (oref this message-id)
+                                 :type "presence_sub"
+                                 :ids user-ids)))
 
 (cl-defmethod slack-team-send-presence-query ((this slack-team) user-ids)
   "Request the USER-IDS presence via websocket rtm api of THIS team."
@@ -903,6 +900,27 @@ statement to get a message id the ws can respond to."
                            (list :id (oref this message-id)
                                  :type "presence_query"
                                  :ids user-ids)))
+
+(defun slack-team-presence-query-and-subscribe (team)
+  "Query and subscribe to first 499 users presence status for TEAM.
+499 is the maximum number supported by the websocket. The
+query (subscription is limited) should rather be batched to cover
+all users, but for simplicity we take the first users."
+  (let ((first-499-users-ids (--> (oref team users)
+                                  hash-table-values
+                                  (--map (plist-get it :id) it)
+                                  (append
+                                   ;; let's give priority to im conversations
+                                   (--keep
+                                    (and
+                                     (slack-room-open-p it)
+                                     (oref it user))
+                                    (slack-team-ims team))
+                                   it)
+                                  -distinct
+                                  (-take 499 it))))
+    (slack-team-send-presence-query team first-499-users-ids)
+    (slack-team-send-presence-subscription team first-499-users-ids)))
 
 (defun slack-authorize (team &optional error-callback success-callback)
   (let ((authorize-request (oref team authorize-request)))
@@ -1017,7 +1035,6 @@ lots of public channels."
             (mapcar #'(lambda (im) (oref im user))
                     (slack-team-ims team))
             team)
-           (slack-team-send-presence-sub team)
            (when (functionp after-success)
              (funcall after-success team))
            (message ">> Slack is ready!")
@@ -1039,16 +1056,17 @@ lots of public channels."
         (unless slack-update-quick (list "public_channel")))))))
 
 (defun slack-im-list-update (&optional team after-success)
+  "Update TEAM list of private slack conversations.
+Run AFTER-SUCCESS taking TEAM if provided."
   (interactive)
   (let ((team (or team (slack-team-select))))
     (cl-labels
         ((success (_channels _groups ims)
-                  (slack-team-set-ims team ims)
-                  (when (functionp after-success)
-                    (funcall after-success team))
-                  (slack-log "Slack Im List Updated"
-                             team :level 'info)
-                  (slack-team-send-presence-sub team)))
+           (slack-team-set-ims team ims)
+           (when (functionp after-success)
+             (funcall after-success team))
+           (slack-log "Slack Im List Updated"
+                      team :level 'info)))
       (slack-conversations-list team #'success (list "im")))))
 
 (provide 'slack-websocket)
