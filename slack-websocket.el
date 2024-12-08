@@ -178,7 +178,8 @@ what is happening in your team."
 
 (defun slack-ws-retryable-payload-p (payload)
   (and (not (slack-ws-payload-ping-p payload))
-       (not (slack-ws-payload-presence-sub-p payload))))
+       (not (slack-ws-payload-presence-sub-p payload))
+       (not (slack-ws-payload-presence-query-p payload))))
 
 (cl-defmethod slack-ws-send ((ws slack-team-ws) payload team)
   (slack-log-websocket-payload payload team t)
