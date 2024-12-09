@@ -101,7 +101,7 @@ Run an action on the data returned with AFTER-SUCCESS."
    (author-id :initarg :author-id :type (or null string))))
 
 (cl-defmethod slack-activity-message-to-string ((this activity-message) team)
-  "Format an activity-message as a string for presentation."
+  "Format THIS activity-message of TEAM as a string for presentation."
   (with-slots (channel ts is-broadcast thread-ts author-id) this
     (let* ((room (slack-room-find channel team))
            (header (propertize (format "%s%s"
@@ -114,35 +114,41 @@ Run an action on the data returned with AFTER-SUCCESS."
                           (when-let ((author (slack-user-name author-id team))) (format " from %s" author))
                           "\n"
                           (or
-                           (with-demoted-errors "slack-activity-message-to-string: Loading messages failed with: %S"
-                             (when (or ts thread-ts)
-                               (let* ((message (slack-room-find-message room ts))
-                                      (on-success-history (lambda (messages _next-cursor)
-                                                            (setq message (car messages))))
-                                      (on-success-replies (lambda (messages _next-cursor _more-messages)
-                                                            (setq message (car messages))))
-                                      (thread-ts-in-halves (s-split "\\." thread-ts))
-                                      (thread-ts-first-half (nth 0 thread-ts-in-halves))
-                                      (thread-ts-second-half (nth 1 thread-ts-in-halves)))
-                                 ;; TODO this block is time consuming! We could retrieve these messages in parallel using the same waiting mechanism (accept-process-output,) but waiting on the list of messages. Needs to be done in caller, possibly passing the messages as an optional context parameter.
-                                 (unless message
-                                   (if (and
-                                        thread-ts-second-half
-                                        (not (string-equal ts thread-ts)))
-                                       (slack-conversations-replies room thread-ts team
-                                                                    ;; :latest thread-ts
+                           (condition-case err
+                               (when (or ts thread-ts)
+                                 (let* ((message (condition-case err
+                                                     (slack-room-find-message room ts)
+                                                   (error
+                                                    (message "error in: %s" (error-message-string err))
+                                                    nil)))
+                                        (on-success-history (lambda (messages _next-cursor)
+                                                              (setq message (car messages))))
+                                        (on-success-replies (lambda (messages _next-cursor _more-messages)
+                                                              (setq message (car messages))))
+                                        (thread-ts-in-halves (s-split "\\." thread-ts))
+                                        (thread-ts-second-half (nth 1 thread-ts-in-halves)))
+                                   ;; TODO this block is time consuming! We could retrieve these messages in parallel using the same waiting mechanism (accept-process-output,) but waiting on the list of messages. Needs to be done in caller, possibly passing the messages as an optional context parameter.
+                                   (unless message
+                                     (if (and
+                                          thread-ts-second-half
+                                          (not (string-equal ts thread-ts)))
+                                         (slack-conversations-replies room thread-ts team
+                                                                      ;; :latest thread-ts
+                                                                      :inclusive "true"
+                                                                      :limit "1"
+                                                                      :after-success on-success-replies)
+                                       (slack-conversations-history room team
+                                                                    :latest ts
                                                                     :inclusive "true"
                                                                     :limit "1"
-                                                                    :after-success on-success-replies)
-                                     (slack-conversations-history room team
-                                                                  :latest ts
-                                                                  :inclusive "true"
-                                                                  :limit "1"
-                                                                  :after-success on-success-history)))
-                                 (while (null message)
-                                   (accept-process-output nil 0.1))
-                                 (slack-message-body message team)
-                                 )))
+                                                                    :after-success on-success-history)))
+                                   (while (null message)
+                                     (accept-process-output nil 0.1))
+                                   (slack-message-body message team)
+                                   ))
+                             (error
+                              (message "slack-activity-message-to-string: Loading messages failed with: %S" (error-message-string err))
+                              nil))
                            "TODO")
                           )
                   'ts ts
