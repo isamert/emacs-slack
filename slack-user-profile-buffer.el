@@ -30,8 +30,9 @@
 (require 'slack-user)
 (require 'slack-im)
 (require 'slack-image)
-(require 'slack-websocket)
 
+;; due to circular dependency we declare the symbol, since websocket is a core functionality
+(declare-function slack-team-send-presence-query "slack-websocket")
 (defvar slack-open-direct-message-keymap)
 (defvar slack-completing-read-function)
 (define-derived-mode slack-user-profile-buffer-mode slack-buffer-mode "Slack User Profile")
