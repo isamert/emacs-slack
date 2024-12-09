@@ -173,11 +173,14 @@ Run an action on the data returned with AFTER-SUCCESS."
    (reaction :initarg :reaction :type (or null activity-reaction))))
 
 (cl-defmethod slack-activity-item-to-string ((this activity-item) team)
+  "Convert THIS activity for TEAM into a string."
   (with-slots (type message reaction) this
-    (concat
-     (slack-activity-message-to-string message team)
-     (when reaction (concat "\n" (slack-activity-reaction-to-string reaction team)))
-     )))
+    (if (equal type "bot_dm_bundle") ;; this bot message seem to have no valuable information
+        ""
+      (concat
+       (slack-activity-message-to-string message team)
+       (when reaction (concat "\n" (slack-activity-reaction-to-string reaction team)))
+       ))))
 
 (defclass slack-activity ()
   ((is-unread :initarg :is-unread :type boolean)
