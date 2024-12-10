@@ -373,6 +373,7 @@ TEAM is one of `slack-teams'"
   (slack-ws-remove-from-resend-queue ws payload team)
   (let* ((key (plist-get payload :time))
          (timer (gethash key (oref ws ping-check-timers))))
+    (slack-team-presence-query-and-subscribe team)
     (slack-log (format "Receive PONG: %s. RTT is %s sec"
                        key
                        (- (time-to-seconds (current-time)) (string-to-number key)))
@@ -920,7 +921,9 @@ all users, but for simplicity we take the first users."
                                   -distinct
                                   (-take 499 it))))
     (slack-team-send-presence-query team first-499-users-ids)
-    (slack-team-send-presence-subscription team first-499-users-ids)))
+    (slack-team-send-presence-subscription team first-499-users-ids)
+    (slack-log "Queried first 499 users presence via RTT"
+               team :level 'trace)))
 
 (defun slack-authorize (team &optional error-callback success-callback)
   (let ((authorize-request (oref team authorize-request)))
