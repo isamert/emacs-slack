@@ -35,6 +35,13 @@
 
 (defvar alert-default-style)
 
+(defvar slack-custom-notification-predicates nil
+  "A list of functions that allow to receive alerts from channels.
+Those are channels the user doesn't want to subscribe to but
+subscribe on a condition. If the function returns the
+`slack-notify-keep' symbol, it is kept for a next round after
+success.")
+
 (defcustom slack-message-custom-notifier nil
   "Custom notification function.\ntake 3 Arguments.\n(lambda (MESSAGE ROOM TEAM) ...)."
   :type 'function
@@ -87,14 +94,77 @@
                                    body)))
                          (oref team usergroups))))))
 
+
+(defun slack-custom-notification-p (message room team)
+  "Check MESSAGE ROOM and TEAM against `slack-custom-notification-predicates'.
+Removes the first predicate that is true, unless it returns
+`slack-notify-keep'."
+  (when-let ((found-index (--find-index
+                           (funcall it message room team)
+                           slack-custom-notification-predicates)))
+    (setq slack-custom-notification-predicates (-remove-at found-index slack-custom-notification-predicates))
+    found-index))
+
 (defun slack-message-notify-p (message room team)
-  (and (not (slack-message-minep message team))
-       (not (slack-room-muted-p room team))
-       (or (slack-im-p room)
-           (slack-group-p room)
-           (slack-room-subscribedp room team)
-           (slack-message-mentioned-p message team)
-           (slack-message-subscribed-thread-message-p message room))))
+  "Decide if an alert needs to happen for MESSAGE ROOM and TEAM."
+  (let ((custom-notification-p (slack-custom-notification-p message room team)))
+    (and (not (slack-message-minep message team))
+         (or (not (slack-room-muted-p room team)) custom-notification-p)
+         (or (slack-im-p room)
+             (slack-group-p room)
+             (slack-room-subscribedp room team)
+             (slack-message-mentioned-p message team)
+             (slack-message-subscribed-thread-message-p message room)
+             custom-notification-p))))
+
+(defun slack-message-add-text-custom-notification-predicate (needle room-id)
+  "Add a notification for NEEDLE in message text for ROOM-ID.
+Note: this will expire after one notification."
+  (interactive
+   (list
+    (read-string "String the message has to contain:")
+    (let ((team slack-current-team))
+      (oref
+       (slack-room-select
+        (cl-loop for team in (list team)
+                 append (append (slack-team-ims team)
+                                (slack-team-groups team)
+                                (slack-team-channels team)))
+        team)
+       id))))
+  (add-to-list
+   'slack-custom-notification-predicates
+   `(lambda (message room team)
+      (with-slots (text blocks) message
+        (and (equal ,room-id (oref room id))
+             (or (s-contains-p ,needle text)
+                 (s-contains-p ,needle (format "%s" blocks))))))))
+
+(defun slack-message-add-persistent-text-custom-notification-predicate (needle room-id)
+  "Add a notification for NEEDLE in message text for ROOM-ID channel.
+Note: this will stay until the end of the session. At the moment
+you can remove by clearing
+`slack-custom-notification-predicates'."
+  (interactive
+   (list
+    (read-string "String the message has to contain:")
+    (let ((team slack-current-team))
+      (oref
+       (slack-room-select
+        (cl-loop for team in (list team)
+                 append (append (slack-team-ims team)
+                                (slack-team-groups team)
+                                (slack-team-channels team)))
+        team)
+       id))))
+  (add-to-list
+   'slack-custom-notification-predicates
+   `(lambda (message room team)
+      (with-slots (text blocks) message
+        (and (equal ,room-id (oref room id))
+             (or (s-contains-p ,needle text)
+                 (s-contains-p ,needle (format "%s" blocks)))
+             'slack-notify-keep)))))
 
 (defun slack-messages-tracking-faces (messages room team)
   (when (and slack-message-tracking-faces
