@@ -31,6 +31,7 @@
 (require 'slack-room)
 (require 'slack-image)
 (require 'slack-message-formatter)
+(require 'dash)
 (declare-function emojify-mode "emojify")
 
 (defvar slack-buffer-function)
@@ -763,8 +764,8 @@
        (initial-comment (read-from-minibuffer "Message: ")))
       (cl-labels
           ((on-file-upload (&key data &allow-other-keys)
-                           (slack-request-handle-error
-                            (data "slack-file-upload"))))
+             (slack-request-handle-error
+              (data "slack-file-upload"))))
 
         (slack-request
          (slack-request-create
@@ -781,6 +782,38 @@
           :headers (list (cons "Content-Type" "multipart/form-data"))
           :success #'on-file-upload)))
     (error "Call from message buffer or thread buffer")))
+
+(defun slack-file-upload-quick (file &optional initial-comment channel-id team thread-ts)
+  "Uploads FILE with INITIAL-COMMENT on CHANNEL-ID for TEAM for THREAD-TS.
+Default to the current buffer."
+  (interactive
+   (let ((file (expand-file-name (car (find-file-read-args "Select File: " t)))))
+     (list file
+           (read-from-minibuffer "Message: ")
+           (if slack-current-buffer
+               (oref (slack-buffer-room slack-current-buffer) id)
+             (error "Call from message buffer or thread buffer"))
+           (slack-buffer-team slack-current-buffer)
+           (ignore-errors (oref slack-current-buffer thread-ts))
+           )))
+  (cl-labels
+      ((on-file-upload (&key data &allow-other-keys)
+         (slack-request-handle-error
+          (data "slack-file-upload"))))
+
+    (slack-request
+     (slack-request-create
+      slack-file-upload-url
+      team
+      :type "POST"
+      :params (-non-nil
+               (list
+                (when thread-ts (cons "thread_ts" thread-ts))
+                (cons "channels" channel-id)
+                (when initial-comment (cons "initial_comment" initial-comment))))
+      :files (list (cons "file" file))
+      :headers (list (cons "Content-Type" "multipart/form-data"))
+      :success #'on-file-upload))))
 
 (defun slack-clipboard-image-upload ()
   "Uploads png image from clipboard."
