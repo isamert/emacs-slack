@@ -783,17 +783,17 @@
           :success #'on-file-upload)))
     (error "Call from message buffer or thread buffer")))
 
-(defun slack-file-upload-quick (file &optional initial-comment channel-id team thread-ts)
+(defun slack-file-upload-quick (file channel-id team &optional initial-comment thread-ts)
   "Uploads FILE with INITIAL-COMMENT on CHANNEL-ID for TEAM for THREAD-TS.
 Default to the current buffer."
   (interactive
    (let ((file (expand-file-name (car (find-file-read-args "Select File: " t)))))
      (list file
-           (read-from-minibuffer "Message: ")
            (if slack-current-buffer
                (oref (slack-buffer-room slack-current-buffer) id)
              (error "Call from message buffer or thread buffer"))
            (slack-buffer-team slack-current-buffer)
+           (read-from-minibuffer "Message: ")
            (ignore-errors (oref slack-current-buffer thread-ts))
            )))
   (cl-labels
