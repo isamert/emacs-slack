@@ -195,9 +195,9 @@
                    :sort sort
                    :sort-dir sort-dir)))
 
-(defun slack-search-query-params ()
+(defun slack-search-query-params (&optional query)
   (let ((team (slack-team-select))
-        (query (read-from-minibuffer "Query: "))
+        (query (or query (read-from-minibuffer "Query: ")))
         (sort (funcall slack-completing-read-function "Sort: " `("score" "timestamp")
                        nil t))
         (sort-dir (funcall slack-completing-read-function "Direction: " `("desc" "asc")

@@ -162,17 +162,19 @@
     (let ((lui-time-stamp-position nil))
       (lui-insert "(no more messages)\n" t))))
 
-(defun slack-search-from-messages ()
-  (interactive)
-  (cl-destructuring-bind (team query sort sort-dir) (slack-search-query-params)
+(defun slack-search-from-messages (query)
+  (interactive
+   (list (when (region-active-p)
+           (substring-no-properties (funcall region-extract-function)))))
+  (cl-destructuring-bind (team query sort sort-dir) (slack-search-query-params query)
     (let ((instance (make-instance 'slack-search-result
                                    :sort sort
                                    :sort-dir sort-dir
                                    :query query)))
       (cl-labels
           ((after-success ()
-                          (let ((buffer (slack-create-search-result-buffer instance team)))
-                            (slack-buffer-display buffer))))
+             (let ((buffer (slack-create-search-result-buffer instance team)))
+               (slack-buffer-display buffer))))
         (slack-search-request instance #'after-success team)))))
 
 (defun slack-search-from-files ()
