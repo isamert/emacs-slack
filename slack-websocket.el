@@ -248,18 +248,26 @@ what is happening in your team."
         (setq slack-disconnected-timer nil))))
 
 (defun slack-request-api-test (team &optional after-success)
+  "A call to Slack test API for TEAM to see if connection succeeded.
+Provide AFTER-SUCCESS to run a side effect."
   (cl-labels
       ((on-success (&key data &allow-other-keys)
-                   (slack-request-handle-error
-                    (data "slack-request-api-test")
-                    (if after-success
-                        (funcall after-success)))))
+         (slack-request-handle-error
+          (data "slack-request-api-test")
+          (if after-success
+              (funcall after-success)))))
     (slack-request
      (slack-request-create
       slack-api-test-url
       team
       :type "POST"
-      :success #'on-success))))
+      :success #'on-success
+      :error (lambda (&rest _args)
+               (let ((ws (oref team ws)))
+                 ;; sometimes there seems to be a network connectivity that breaks reconnection at this point
+                 (slack-ws--close ws team)
+                 (slack-ws-reconnect ws team)))))))
+
 
 (defun slack-ws-abort-reconnect (team-id)
   (let* ((team (slack-team-find team-id))
@@ -389,15 +397,17 @@ TEAM is one of `slack-teams'"
 
 ;; (:type error :error (:msg Socket URL has expired :code 1))
 (cl-defmethod slack-ws-handle-error ((ws slack-team-ws) payload team)
+  "Try to recover from a websocket error given its PAYLOAD."
   (let* ((err (plist-get payload :error))
          (code (plist-get err :code)))
     (cond
-     ((eq 1 code)
+     ((or (eq 1 code) (eq 6 code)) ;; code 6 is about a network error, apparently caused by leaving computer to sleep over night
       (slack-ws--close ws team)
       (slack-ws-reconnect ws team))
      (t (slack-log (format "Unknown Error: %s, MSG: %s"
                            code (plist-get err :msg))
                    team)))))
+
 
 (cl-defmethod slack-ws-on-message ((ws slack-team-ws) frame team)
   ;; (message "%s" (slack-request-parse-payload
