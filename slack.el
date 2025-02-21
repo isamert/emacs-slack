@@ -200,16 +200,17 @@ You can add it to append custom instructions that depend on context.")
   (interactive)
   (cl-labels ((start
                 (team)
+                (delete-file (request--curl-cookie-jar))
                 (url-cookie-store "d" (slack-team-d-cookie team) nil ".slack.com" "/" t)
                 (url-cookie-store "d-s" (slack-team-d-s-cookie team) nil ".slack.com" "/" t)
                 (url-cookie-store "lc" (slack-team-lc-cookie team) nil ".slack.com" "/" t)
                 (slack-team-kill-buffers team)
                 (slack-if-let* ((ws (and (slot-boundp team 'ws)
                                          (oref team ws))))
-                    (progn
-                      (when (oref ws conn)
-                        (slack-ws--close ws team))
-                      (oset ws inhibit-reconnection nil)))
+                               (progn
+                                 (when (oref ws conn)
+                                   (slack-ws--close ws team))
+                                 (oset ws inhibit-reconnection nil)))
                 (slack-authorize team)))
     (if team
         (start team)
