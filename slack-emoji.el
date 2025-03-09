@@ -108,27 +108,26 @@ This runs asynchronously, splitting the emojis in batches of `slack-emoji-job-ba
               (--> emojis
                    (-partition-all slack-emoji-job-batch-size it)
                    (--map
-                    `(lambda ()
-                       (let ((emojis ',it))
-                         (cl-loop for (name _) on emojis by #'cddr
-                                  do (let* ((url (funcall ',(lambda (name) (handle-alias name)) name))
-                                            (path (if (file-exists-p url) url
-                                                    (slack-image-path url)))
-                                            (emoji (cons (format "%s:" name)
-                                                         (list (cons "name" (substring (symbol-name name) 1))
-                                                               (cons "image" path)
-                                                               (cons "style" "github")))))
-                                       (if (file-exists-p path)
-                                           (funcall ',(lambda (emoji) (push-new-emoji emoji)) emoji)
-                                         (slack-url-copy-file
-                                          url
-                                          path
-                                          ,team
-                                          :success (let ((e emoji))
-                                                     (lambda ()
-                                                       (funcall ',(lambda (emoji) (push-new-emoji emoji)) e))))
-                                         )
-                                       (add-to-list 'slack-emoji-paths path)))))
+                    (let ((emojis it))
+                      (lambda ()
+                        (cl-loop for (name _) on emojis by #'cddr
+                                 do (let* ((url (handle-alias name))
+                                           (path (if (file-exists-p url) url
+                                                   (slack-image-path url)))
+                                           (emoji (cons (format "%s:" name)
+                                                        (list (cons "name" (substring (symbol-name name) 1))
+                                                              (cons "image" path)
+                                                              (cons "style" "github")))))
+                                      (if (file-exists-p path)
+                                          (push-new-emoji emoji)
+                                        (slack-url-copy-file
+                                         url
+                                         path
+                                         team
+                                         :success (lambda ()
+                                                    (push-new-emoji emoji)))
+                                        )
+                                      (add-to-list 'slack-emoji-paths path)))))
                     it)
                    (append
                     it
