@@ -33,6 +33,7 @@
 (require 'slack-message-formatter)
 (require 'dash)
 (declare-function emojify-mode "emojify")
+(declare-function slack-open-message "slack-message-buffer")
 
 (defvar slack-buffer-function)
 (defvar slack-completing-read-function)
@@ -522,11 +523,19 @@
    (message "You are on Last Message.")))
 
 (defun slack-buffer-goto-prev-message ()
+  "Go to previous message in buffer."
   (interactive)
   (slack-buffer-goto-char
    (slack-buffer-prev-point cur-point (point-min) ts)
    "z"
-   (message "You are on First Message.")))
+   (if (equal major-mode 'slack-thread-message-buffer-mode)
+       ;; when in a slack thread view, going to the prev message means coming out of the thread on the main room
+       (slack-if-let* ((ts (slack-get-ts))
+                       (buffer slack-current-buffer)
+                       (team (slack-buffer-team buffer))
+                       (room (slack-buffer-room buffer)))
+           (slack-open-message team room ts nil))
+     (message "You are on First Message."))))
 
 (defun slack-buffer-goto-first-message ()
   (interactive)
