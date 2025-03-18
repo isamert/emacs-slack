@@ -151,6 +151,13 @@
          (text (read-from-minibuffer "Text: ")))
     (slack-user-set-status-request  team emoji text)))
 
+(defun slack-user-reset-status ()
+  (interactive)
+  (let* ((team (slack-team-select))
+         (emoji "")
+         (text ""))
+    (slack-user-set-status-request  team emoji text)))
+
 (defun slack-user-set-status-request (team emoji text)
   (cl-labels ((on-success
                (&key data &allow-other-keys)
