@@ -202,15 +202,19 @@
                                        (if-let ((etoken (slack-team-enterprise-token team)))
                                            (if (member
                                                 url
-                                                ;; These are the endpoints that require user tokens,
-                                                ;; instead of enterprise tokens.  The list may not be complete,
-                                                ;; I am adding them as I find them.
+                                                ;; These are the endpoints that require team tokens, instead of enterprise tokens.
+                                                ;; The list may not be complete, I am adding them as I find them.
+                                                ;;
+                                                ;; If you are getting "team_is_restricted" error, then remove the endpoint from the list below.
+                                                ;; If you are getting "enterprise_is_restricted" error, then add the url to the list below.
+                                                ;;
+                                                ;; It seems that which token is required for an endpoint may change arbitrarily at any time.
                                                 (list
                                                  slack-rtm-connect-url
-                                                 slack-commands-list-url
                                                  slack-conversations-list-url
                                                  slack-file-upload-url
-                                                 slack-get-permalink-url))
+                                                 slack-get-permalink-url
+                                                 slack-conversations-members-url))
                                                (slack-team-token team)
                                              etoken)
                                          (slack-team-token team))))))
