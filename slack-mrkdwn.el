@@ -93,7 +93,7 @@ Group 8 matches the closing parenthesis.")
 (defconst slack-mrkdwn-regex-list "^\\([[:blank:]]*\\)\\([0-9]+\\.\\|[-*]\\)\\([[:blank:]]\\)\\(.*\\)$")
 
 (defface slack-mrkdwn-list-face
-  '((t (:foreground "#fdf6e3" :weight bold)))
+  '((t (:foreground "dark-gray" :weight bold)))
   "Face used to mrkdwn list"
   :group 'slack)
 
