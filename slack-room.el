@@ -50,7 +50,8 @@
    (unread-count-display :initarg :unread_count_display :initform 0 :type integer)
    (message-ids :initform '() :type list)
    (messages :initform (make-hash-table :test 'equal :size 300))
-   (last-read :initarg :last_read :type string :initform "0")))
+   (last-read :initarg :last_read :type string :initform "0")
+   (topic :initarg :topic :initform nil)))
 
 (cl-defgeneric slack-room-name (room team))
 

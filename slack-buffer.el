@@ -672,6 +672,32 @@
                     "Select Channel: "))))
       (slack-conversations-close im team))))
 
+(defun slack-channel-set-topic ()
+  "Set topic for channel."
+  (interactive)
+  (slack-if-let-room-and-team (room team)
+      (slack-conversations-set-topic room team)
+    (let* ((team (slack-team-select))
+           (room (slack-select-from-list
+                     ((slack-channel-names team #'(lambda (channels)
+                                                    (cl-remove-if #'slack-room-member-p
+                                                                  channels)))
+                      "Select Channel: "))))
+      (slack-conversations-set-topic room team))))
+
+(defun slack-channel-set-purpose ()
+  "Set purpose/description for channel. This works for groups only."
+  (interactive)
+  (slack-if-let-room-and-team (room team)
+      (slack-conversations-set-purpose room team)
+    (let* ((team (slack-team-select))
+           (room (slack-select-from-list
+                     ((slack-channel-names team #'(lambda (channels)
+                                                    (cl-remove-if #'slack-room-member-p
+                                                                  channels)))
+                      "Select Channel: "))))
+      (slack-conversations-set-purpose room team))))
+
 (defun slack-channel-rename ()
   (interactive)
   (slack-if-let-room-and-team (room team)

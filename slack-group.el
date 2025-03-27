@@ -56,7 +56,6 @@
    (previous-names :initarg :previous_names :initform '() :type list)
    (purpose :initarg :purpose :initform nil)
    (shared-team-ids :initarg :shared_team_ids :initform '() :type list)
-   (topic :initarg :topic :initform nil)
    (members :initarg :members :type list :initform '())
    (members-loaded-p :type boolean :initform nil)))
 

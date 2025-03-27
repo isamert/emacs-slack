@@ -317,6 +317,27 @@ Available options (property name, type, default value)
   (insert (funcall slack-edit-refresh-token-instructions slack-refresh-token-instructions))
   (slack-stop))
 
+(defun slack-show-channel-info ()
+  "Show an org mode buffer with channel information."
+  (interactive)
+  (let* ((channel (car (slack-current-room-and-team)))
+         (b (format "*slack %s channel information*" (oref channel id))))
+    (with-help-window b
+      (with-current-buffer b
+        (insert "* Information\n\n")
+        (org-mode)
+        (slack-override-keybiding-in-buffer
+         (kbd "q")
+         'bury-buffer)
+        )
+      (insert "- Name :: " (or (ignore-errors (oref channel name)) "Not available") "\n")
+      (insert "- Topic :: " (format "%s" (oref channel topic)) "\n")
+      (insert "- Purpose :: " (format "%s" (or (ignore-errors (oref channel purpose)) "Not available")) "\n")
+      (insert "- Archived :: " (or (ignore-errors (oref channel is-archived)) "Not available") "\n")
+      (insert "- Creator :: " (or (ignore-errors (oref channel creator)) "Not available") "\n")
+      ;; TODO add other slack-group properties AND format properly
+      )))
+
 (defun slack-show-channel-bookmarks (channel-id team)
   "Show an org mode buffer with the bookmarks of CHANNEL-ID for TEAM."
   (interactive (let ((room-and-team (slack-current-room-and-team)))
