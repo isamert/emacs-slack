@@ -28,7 +28,9 @@
 (require 'slack-util)
 (require 'slack-team)
 (require 'slack-buffer)
+(require 'slack-message-buffer)
 (require 'slack-star)
+(require 'slack-message)
 
 (define-derived-mode slack-stars-buffer-mode slack-buffer-mode "Slack Stars Buffer")
 
@@ -59,14 +61,16 @@
         (oset file is-expanded (not (oref file is-expanded)))
         (slack-buffer--replace this ts))))
 
-(cl-defmethod slack-buffer-insert ((this slack-stars-buffer) item &optional not-tracked-p)
+(cl-defmethod slack-buffer-insert ((this slack-stars-buffer) message &optional not-tracked-p)
   (let ((lui-time-stamp-time (seconds-to-time
                               (string-to-number
                                (slack-ts
-                                (slack-star-item-message item))))))
+                                message)))))
     (lui-insert-with-text-properties
-     (slack-to-string item (slack-buffer-team this))
-     'ts (slack-ts item)
+     (slack-message-to-string message (slack-buffer-team this))
+     'ts (slack-ts message)
+     'team-id (oref (slack-buffer-team this) id)
+     'room-id (oref message channel)
      'not-tracked-p not-tracked-p)
     (lui-insert "" t)))
 
@@ -76,7 +80,8 @@
 
 (cl-defmethod slack-buffer-insert-history ((this slack-stars-buffer))
   (let* ((team (slack-buffer-team this))
-         (items (slack-star-items (oref team star)))
+         (star-items (slack-star-items (oref team star)))
+         (items (mapcar (lambda (i) (slack-message-get-or-fetch (oref i ts) (oref i item-id) team)) star-items))
          (before-oldest (oref this oldest)))
     (oset this oldest (slack-ts (car items)))
     (cl-loop for item in items
@@ -91,12 +96,14 @@
 (cl-defmethod slack-buffer-request-history ((this slack-stars-buffer) after-success)
   (let ((team (slack-buffer-team this)))
     (slack-stars-list-request team
-                              (slack-next-page (oref (oref team star) paging))
+                              (oref (oref team star) cursor)
                               after-success)))
 
-(cl-defmethod slack-buffer-update-oldest ((this slack-stars-buffer) item)
-  (when (string< (oref this oldest) (slack-ts item))
-    (oset this oldest (slack-ts item))))
+(cl-defmethod slack-buffer-update-oldest ((this slack-stars-buffer) star-item)
+  (let* ((team (slack-buffer-team this))
+         (item (slack-message-get-or-fetch (oref star-item ts) (oref star-item item-id) team)))
+    (when (string< (oref this oldest) (slack-ts item))
+      (oset this oldest (slack-ts item)))))
 
 (cl-defmethod slack-buffer-init-buffer ((this slack-stars-buffer))
   (let* ((buf (cl-call-next-method))
@@ -110,7 +117,7 @@
       (slack-stars-buffer-mode)
       (slack-buffer-set-current-buffer this)
       (slack-buffer-insert-load-more this)
-      (cl-loop for m in items
+      (cl-loop for m in (mapcar (lambda (i) (slack-message-get-or-fetch (oref i ts) (oref i item-id) team)) items)
                do (slack-buffer-insert this m))
       (goto-char (point-max)))
     buf))
@@ -136,16 +143,18 @@
 (cl-defmethod slack-buffer--replace ((this slack-stars-buffer) ts)
   (let ((team (slack-buffer-team this)))
     (with-slots (star) team
-      (let* ((items (slack-star-items star))
+      (let* ((star-items (slack-star-items star))
+             (items (mapcar (lambda (i) (slack-message-get-or-fetch (oref i ts) (oref i item-id) team)) star-items))
              (item (cl-find-if #'(lambda (e) (string= (slack-ts e)
                                                       ts))
                                items)))
-        (lui-replace (slack-to-string item team)
+        (lui-replace (slack-message-to-string item team)
                      #'(lambda ()
                          (string= (get-text-property (point) 'ts)
                                   ts)))))))
 
 (defun slack-stars-list ()
+  "Show the buffer with the saved for later messages."
   (interactive)
   (let* ((team (slack-team-select))
          (buf (slack-buffer-find 'slack-stars-buffer team)))
@@ -153,6 +162,23 @@
       (slack-stars-list-request
        team nil
        #'(lambda () (slack-buffer-display (slack-create-stars-buffer team)))))))
+
+(defun slack-stars-open-message ()
+  "Open message at point of activity-feed."
+  (interactive)
+  (if-let* ((ts (get-text-property (point) 'ts))
+            (team-id (get-text-property (point) 'team-id))
+            (room-id (get-text-property (point) 'room-id))
+            (thread-ts (or (get-text-property (point) 'thread-ts) ts))
+            (team (slack-team-find team-id)))
+      (slack-open-message
+       team
+       (slack-room-find room-id team)
+       (--find (s-matches-p "[0-9]" it) (list ts))
+       ;; found out that when a ts is nil, it comes "nil"
+       (--find (s-matches-p "[0-9]" it) (list thread-ts)))
+    (error "Not possible to jump to message")))
+(define-key slack-stars-buffer-mode-map (kbd "RET") 'slack-stars-open-message)
 
 (provide 'slack-stars-buffer)
 ;;; slack-stars-buffer.el ends here

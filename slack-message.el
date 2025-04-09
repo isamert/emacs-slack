@@ -43,8 +43,8 @@
 
 (defconst slack-message-pins-add-url "https://slack.com/api/pins.add")
 (defconst slack-message-pins-remove-url "https://slack.com/api/pins.remove")
-(defconst slack-message-stars-add-url "https://slack.com/api/stars.add")
-(defconst slack-message-stars-remove-url "https://slack.com/api/stars.remove")
+(defconst slack-message-stars-add-url "https://slack.com/api/saved.add")
+(defconst slack-message-stars-remove-url "https://slack.com/api/saved.delete")
 
 (defclass slack-message ()
   ((type :initarg :type :type string)
@@ -327,6 +327,44 @@
     (oset message replies (cl-remove-if #'(lambda (timestamp) (string= ts timestamp))
                                         (if append-p (append (oref message replies) replies)
                                           replies)))))
+
+(defun slack-message-get-or-fetch (ts room-id team &optional thread-ts)
+  "Get a message given a TS a ROOM-ID and TEAM, optionally a THREAD-TS.
+Be aware: this is a blocking call because we need to call the api to fetch the
+message. Given only the ts, we have to guess if it is in a thread
+or not."
+  (let* ((thread-ts (or thread-ts ts))
+         (room (slack-room-find room-id team))
+         (message (condition-case err
+                      (slack-room-find-message room ts)
+                    (error
+                     (message "error in: %s" (error-message-string err))
+                     nil)))
+         (on-success-history (lambda (messages _next-cursor)
+                               (setq message (car messages))))
+         (on-success-replies (lambda (messages _next-cursor _more-messages)
+                               (setq message (car messages))))
+         (thread-ts-in-halves (s-split "\\." thread-ts))
+         (thread-ts-second-half (nth 1 thread-ts-in-halves)))
+    ;; TODO this block is time consuming! We could retrieve these messages in parallel using the same waiting mechanism (accept-process-output,) but waiting on the list of messages. Needs to be done in caller, possibly passing the messages as an optional context parameter.
+    (unless message
+      (if (and
+           thread-ts-second-half
+           (not (string-equal ts thread-ts)))
+          (slack-conversations-replies room thread-ts team
+                                       ;; :latest thread-ts
+                                       :inclusive "true"
+                                       :limit "1"
+                                       :after-success on-success-replies)
+        (slack-conversations-history room team
+                                     :latest ts
+                                     :inclusive "true"
+                                     :limit "1"
+                                     :after-success on-success-history)))
+    (while (null message)
+      (accept-process-output nil 0.1))
+    message
+    ))
 
 (provide 'slack-message)
 ;;; slack-message.el ends here

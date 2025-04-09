@@ -115,7 +115,7 @@ Run an action on the data returned with AFTER-SUCCESS."
                           "\n"
                           (or
                            (condition-case err
-                               (when (or ts thread-ts)
+                               (when (or ts thread-ts) ;; TODO refactor this: use `slack-message-get-or-fetch'
                                  (let* ((message (condition-case err
                                                      (slack-room-find-message room ts)
                                                    (error

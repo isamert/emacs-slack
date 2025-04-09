@@ -184,8 +184,9 @@ SUCCESS-CALLBACK allows you to run a function on that permalink."
                   (room (slack-buffer-room this))
                   (message (slack-room-find-message room ts)))
       (slack-star-api-request slack-message-stars-remove-url
-                              (list (cons "channel" (oref room id))
-                                    (slack-message-star-api-params message))
+                              (list (cons "ts" (slack-ts message))
+                                    (cons "item_id" (oref room id))
+                                    (cons "item_type" "message"))
                               team)))
 
 (cl-defmethod slack-buffer-add-star ((this slack-room-buffer) ts)
@@ -193,8 +194,10 @@ SUCCESS-CALLBACK allows you to run a function on that permalink."
                   (room (slack-buffer-room this))
                   (message (slack-room-find-message room ts)))
       (slack-star-api-request slack-message-stars-add-url
-                              (list (cons "channel" (oref room id))
-                                    (slack-message-star-api-params message))
+                              (list (cons "item_id" (oref room id))
+                                    (cons "ts" (slack-ts message))
+                                    (cons "item_type" "message")
+                                    )
                               team)))
 
 (cl-defmethod slack-buffer-add-reaction-to-message ((this slack-room-buffer) reaction ts)
