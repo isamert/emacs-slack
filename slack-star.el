@@ -105,10 +105,7 @@
           (data "slack-stars-list-request")
           (let* ((star (slack-create-star data))
                  (user-ids (slack-team-missing-user-ids
-                            team (cl-loop for item in (oref star items)
-                                          if (slack-star-message-p item)
-                                          nconc (slack-message-user-ids
-                                                 (oref item message))))))
+                            team nil)))
             (if (oref team star)
                 (if cursor
                     (slack-merge (oref team star) star)
