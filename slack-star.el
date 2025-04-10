@@ -137,11 +137,17 @@
       :success #'on-success))))
 
 (cl-defmethod slack-star-remove-star ((this slack-star) ts team)
-  (slack-if-let* ((item (cl-find-if #'(lambda (e) (string= (oref e date-create) ts))
-                                    (oref this items))))
+  "Remove from THIS stars the star at TS for TEAM."
+  (slack-if-let* ((item
+                   (--find
+                    (string= (oref it ts) ts)
+                    (oref this items))))
       (slack-star-api-request slack-message-stars-remove-url
-                              (slack-message-star-api-params item)
-                              team)))
+                              (list (cons "ts" ts)
+                                    (cons "item_id" (oref item item-id))
+                                    (cons "item_type" (oref item item-type)))
+                              team)
+    (error "Could not find star to remove for ts")))
 
 
 (provide 'slack-star)

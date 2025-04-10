@@ -82,6 +82,7 @@
                 'help-echo #'slack-reaction-help-echo)))
 
 (cl-defmethod slack-message-to-string ((m slack-message) team)
+  "Create a propertized string for the message M of TEAM."
   (let* ((header (slack-message-header m team))
          (attachment (mapconcat #'(lambda (attachment)
                                     (slack-message-to-string attachment team))

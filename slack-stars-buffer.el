@@ -128,6 +128,7 @@
     (make-instance 'slack-stars-buffer :team-id (oref team id))))
 
 (cl-defmethod slack-buffer-remove-star ((this slack-stars-buffer) ts)
+  "Remove THIS star at TS."
   (let ((team (slack-buffer-team this)))
     (with-slots (star) team
       (slack-star-remove-star star ts team))))
@@ -179,6 +180,15 @@
        (--find (s-matches-p "[0-9]" it) (list thread-ts)))
     (error "Not possible to jump to message")))
 (define-key slack-stars-buffer-mode-map (kbd "RET") 'slack-stars-open-message)
+
+(define-key slack-stars-buffer-mode-map (kbd "K") 'slack-message-remove-star)
+
+(defun slack-stars-refresh-buffer ()
+  "Close and reopen star buffer to refresh contents."
+  (interactive)
+  (kill-buffer)
+  (slack-stars-list))
+(define-key slack-stars-buffer-mode-map (kbd "G") 'slack-stars-refresh-buffer)
 
 (provide 'slack-stars-buffer)
 ;;; slack-stars-buffer.el ends here
