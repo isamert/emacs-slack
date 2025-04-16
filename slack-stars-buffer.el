@@ -117,7 +117,11 @@
       (slack-stars-buffer-mode)
       (slack-buffer-set-current-buffer this)
       (slack-buffer-insert-load-more this)
-      (cl-loop for m in (mapcar (lambda (i) (slack-message-get-or-fetch (oref i ts) (oref i item-id) team)) items)
+      (cl-loop for m in (mapcar
+                         (lambda (i)
+                           (with-demoted-errors "slack-buffer-init-buffer: failed to retrieve message %S"
+                             (slack-message-get-or-fetch (oref i ts) (oref i item-id) team)))
+                         items)
                do (slack-buffer-insert this m))
       (goto-char (point-max)))
     buf))
