@@ -195,13 +195,13 @@
                     (slack-message-reactions message))))
     (slack-message-reaction-remove reaction ts room team)))
 
-(cl-defmethod slack-buffer-add-star ((this slack-thread-message-buffer) ts)
+(cl-defmethod slack-buffer-add-star ((this slack-thread-message-buffer) ts &optional due-in-ms)
   (slack-if-let* ((team (slack-buffer-team this))
                   (room (slack-buffer-room this))
                   (message (slack-room-find-message room ts)))
       (slack-star-api-request slack-message-stars-add-url
-                              (list (cons "channel" (oref room id))
-                                    (slack-message-star-api-params message))
+                              (append  (list (cons "channel" (oref room id)))
+                                       (slack-message-star-api-params message due-in-ms))
                               team)))
 
 (cl-defmethod slack-buffer-remove-star ((this slack-thread-message-buffer) ts)
@@ -209,8 +209,8 @@
                   (room (slack-buffer-room this))
                   (message (slack-room-find-message room ts)))
       (slack-star-api-request slack-message-stars-remove-url
-                              (list (cons "channel" (oref room id))
-                                    (slack-message-star-api-params message))
+                              (append (list (cons "channel" (oref room id)))
+                                      (slack-message-star-api-params message))
                               team)))
 
 (cl-defmethod slack-buffer-update ((this slack-thread-message-buffer) message &key replace)

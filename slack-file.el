@@ -504,7 +504,7 @@
   (oset this is-starred nil))
 
 (cl-defmethod slack-message-star-api-params ((this slack-file))
-  (cons "file" (oref this id)))
+  (list (cons "file" (oref this id))))
 
 (cl-defmethod slack-ts ((this slack-file))
   (number-to-string (oref this created)))

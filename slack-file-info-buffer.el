@@ -226,7 +226,7 @@
         (file (oref this file))
         (team (slack-buffer-team this)))
     (slack-star-api-request url
-                            (list (slack-message-star-api-params file))
+                            (slack-message-star-api-params file)
                             team)))
 
 (cl-defmethod slack-buffer-remove-star ((this slack-file-info-buffer) _ts)
@@ -234,8 +234,8 @@
         (file (oref this file))
         (team (slack-buffer-team this)))
     (slack-star-api-request url
-                            (list (slack-message-star-api-params
-                                   file))
+                            (slack-message-star-api-params
+                             file)
                             team)))
 
 (cl-defmethod slack-buffer--replace ((this slack-file-info-buffer) _ts)

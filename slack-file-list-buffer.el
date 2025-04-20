@@ -217,14 +217,14 @@
   (slack-if-let* ((team (slack-buffer-team this))
                   (file (slack-file-find ts team)))
       (slack-star-api-request slack-message-stars-add-url
-                              (list (slack-message-star-api-params file))
+                              (slack-message-star-api-params file)
                               team)))
 
 (cl-defmethod slack-buffer-remove-star ((this slack-file-list-buffer) ts)
   (slack-if-let* ((team (slack-buffer-team this))
                   (file (slack-file-find ts team)))
       (slack-star-api-request slack-message-stars-remove-url
-                              (list (slack-message-star-api-params file))
+                              (slack-message-star-api-params file)
                               team)))
 
 (provide 'slack-file-list-buffer)

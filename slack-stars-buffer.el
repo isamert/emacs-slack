@@ -122,7 +122,8 @@
                            (with-demoted-errors "slack-buffer-init-buffer: failed to retrieve message %S"
                              (slack-message-get-or-fetch (oref i ts) (oref i item-id) team)))
                          items)
-               do (slack-buffer-insert this m))
+               do (slack-buffer-insert this m) ;; TODO add the due time of the star
+               )
       (goto-char (point-max)))
     buf))
 

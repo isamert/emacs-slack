@@ -119,8 +119,20 @@
 (cl-defmethod slack-message-star-removed ((m slack-message))
   (oset m is-starred nil))
 
-(cl-defmethod slack-message-star-api-params ((m slack-message))
-  (cons "timestamp" (slack-ts m)))
+(cl-defmethod slack-message-star-api-params ((m slack-message) &optional due-in-ms)
+  (append (list (cons "item_type" "message"))
+          (list (cons "item_id" (oref m channel)))
+          (list (cons "ts" (slack-ts m)))
+          (when due-in-ms
+            (list
+             (cons "date_due"
+                   (car
+                    (s-split
+                     "\\."
+                     (format "%s"
+                             (+ (/ due-in-ms 1000)
+                                (float-time)
+                                )))))))))
 
 (cl-defmethod slack-reaction-delete ((this slack-message) reaction)
   (with-slots (reactions) this
