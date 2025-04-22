@@ -81,6 +81,8 @@ You need to install `language-detection' for this to work.")
 (defun slack-create-layout-block (payload)
   (let ((type (plist-get payload :type)))
     (cond
+     ((string= "header" type)
+      (slack-create-layout-header-block payload))
      ((string= "section" type)
       (slack-create-section-layout-block payload))
      ((string= "divider" type)
@@ -112,6 +114,25 @@ You need to install `language-detection' for this to work.")
 
 ;; Rich Text Blocks
 ;; [Changes to message objects on the way to support WYSIWYG | Slack](https://api.slack.com/changelog/2019-09-what-they-see-is-what-you-get-and-more-and-less)
+(defclass slack-layout-header-block ()
+  ((type :initarg :type :type string)
+   (block-id :initarg :block_id :type string)
+   (text :initarg :text :type slack-text-message-composition-object)
+   ))
+
+(cl-defmethod slack-block-to-string ((this slack-layout-header-block) &optional option)
+  (propertize (slack-block-to-string (oref this text)) 'face '(:weight bold :height 1.2)))
+
+(cl-defmethod slack-block-to-mrkdwn ((this slack-layout-header-block) &optional option)
+  (format "# %s" (slack-block-to-string (oref this text))))
+
+(defun slack-create-layout-header-block (payload)
+  (make-instance 'slack-layout-header-block
+                 :type (plist-get payload :type)
+                 :block_id (plist-get payload :block_id)
+                 :text (slack-create-text-message-composition-object
+                        (plist-get payload :text))))
+
 (defclass slack-rich-text-block ()
   ((type :initarg :type :type string)
    (block-id :initarg :block_id :type string)
@@ -1258,7 +1279,7 @@ You need to install `language-detection' for this to work.")
 
 (defclass slack-text-message-composition-object (slack-message-composition-object)
   ((type :initarg :type :type string) ;; plain_text or mrkdwn
-   (text :initarg :text) ;; :type string?
+   (text :initarg :text :type string)
    (emoji :initarg :emoji :type (or null boolean) :initform nil)
    (verbatim :initarg :verbatim :type (or null boolean) :initform nil)))
 
