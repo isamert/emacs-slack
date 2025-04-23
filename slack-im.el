@@ -31,11 +31,13 @@
 (require 'slack-request)
 (require 'slack-conversations)
 
+(declare-function slack-room-display "slack-message-buffer.el")
 (defvar slack-buffer-function)
 (defvar slack-display-team-name)
 (defvar slack-completing-read-function)
 
 (defconst slack-im-update-mark-url "https://slack.com/api/im.mark")
+
 
 (defclass slack-im (slack-room)
   ((user :initarg :user :initform "")
@@ -95,6 +97,8 @@
                       #'filter)))
 
 (defun slack-im-open ()
+  "Open IM message channel with another user.
+Use `slack-group-mpim-open' for a group of users."
   (interactive)
   (let* ((team (slack-team-select))
          (user (slack-select-from-list
@@ -104,7 +108,11 @@
                                  (cl-remove-if #'slack-user-hidden-p users)))
                     "Select User: "))))
     (slack-conversations-open team
-                              :user-ids (list (plist-get user :id)))))
+                              :user-ids (list (plist-get user :id))
+                              :on-success (lambda (data)
+                                            (let* ((room-id (plist-get (plist-get data :channel) :id))
+                                                   (room (slack-room-find room-id team)))
+                                              (slack-room-display room team))))))
 
 (cl-defmethod slack-room-label-prefix ((room slack-im) team)
   (format "%s%s"

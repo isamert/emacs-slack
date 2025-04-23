@@ -30,6 +30,8 @@
 (require 'slack-conversations)
 (require 'slack-defcustoms)
 
+(declare-function slack-room-display "slack-message-buffer.el")
+
 (defvar slack-buffer-function)
 (defvar slack-completing-read-function)
 
@@ -128,19 +130,24 @@
                members ", ")))
 
 (defun slack-group-mpim-open ()
+  "Open group conversation by selecting users."
   (interactive)
   (let* ((team (slack-team-select))
          (users (slack-user-names team)))
     (cl-labels
         ((prompt (loop-count)
-                 (if (< 0 loop-count)
-                     "Select another user (or leave empty): "
-                   "Select user: "))
+           (if (< 0 loop-count)
+               "Select another user (or leave empty): "
+             "Select user: "))
          (user-ids ()
-                   (mapcar #'(lambda (user) (plist-get user :id))
-                           (slack-select-multiple #'prompt users))))
+           (mapcar #'(lambda (user) (plist-get user :id))
+                   (slack-select-multiple #'prompt users))))
       (slack-conversations-open team
-                                :user-ids (user-ids)))))
+                                :user-ids (user-ids)
+                                :on-success (lambda (data)
+                                              (let* ((room-id (plist-get (plist-get data :channel) :id))
+                                                     (room (slack-room-find room-id team)))
+                                                (slack-room-display room team)))))))
 
 (cl-defmethod slack-mpim-p ((room slack-group))
   (oref room is-mpim))
