@@ -73,8 +73,10 @@
 (cl-defmethod slack-room-subscribedp ((room slack-channel) team)
   (with-slots (subscribed-channels) team
     (let ((name (slack-room-name room team)))
-      (and name
-           (memq (intern name) (append subscribed-channels slack-extra-subscribed-channels))))))
+      (or
+       (oref room is-mpim) ;; groups conversations we are in need notification
+       (and name
+            (memq (intern name) (append subscribed-channels slack-extra-subscribed-channels)))))))
 
 (cl-defmethod slack-room-hidden-p ((room slack-channel))
   (slack-room-archived-p room))
