@@ -34,6 +34,8 @@
 (require 'dash)
 (require 's)
 
+(declare-function "slack-message-get-or-fetch" "slack-message.el")
+
 (defvar slack-activity-feed-url "https://slack.com/api/activity.feed")
 
 (defun slack-activity-feed-request (team &optional after-success)
@@ -116,36 +118,12 @@ Run an action on the data returned with AFTER-SUCCESS."
                           (or
                            (condition-case err
                                (when (or ts thread-ts) ;; TODO refactor this: use `slack-message-get-or-fetch'
-                                 (let* ((message (condition-case err
-                                                     (slack-room-find-message room ts)
-                                                   (error
-                                                    (message "error in: %s" (error-message-string err))
-                                                    nil)))
-                                        (on-success-history (lambda (messages _next-cursor)
-                                                              (setq message (car messages))))
-                                        (on-success-replies (lambda (messages _next-cursor _more-messages)
-                                                              (setq message (car messages))))
-                                        (thread-ts-in-halves (s-split "\\." thread-ts))
-                                        (thread-ts-second-half (nth 1 thread-ts-in-halves)))
-                                   ;; TODO this block is time consuming! We could retrieve these messages in parallel using the same waiting mechanism (accept-process-output,) but waiting on the list of messages. Needs to be done in caller, possibly passing the messages as an optional context parameter.
-                                   (unless message
-                                     (if (and
-                                          thread-ts-second-half
-                                          (not (string-equal ts thread-ts)))
-                                         (slack-conversations-replies room thread-ts team
-                                                                      ;; :latest thread-ts
-                                                                      :inclusive "true"
-                                                                      :limit "1"
-                                                                      :after-success on-success-replies)
-                                       (slack-conversations-history room team
-                                                                    :latest ts
-                                                                    :inclusive "true"
-                                                                    :limit "1"
-                                                                    :after-success on-success-history)))
-                                   (while (null message)
-                                     (accept-process-output nil 0.1))
-                                   (slack-message-body message team)
-                                   ))
+                                 (slack-message-body
+                                  (slack-message-get-or-fetch
+                                   ts
+                                   (oref room id) team thread-ts)
+                                  team)
+                                 )
                              (error
                               (message "slack-activity-message-to-string: Loading messages failed with: %S" (error-message-string err))
                               nil))
