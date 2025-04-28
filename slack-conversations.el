@@ -31,6 +31,7 @@
 (require 'slack-message)
 (require 'slack-create-message)
 (require 'slack-defcustoms)
+(require 'dash)
 
 (defcustom slack-exclude-archived-channels t
   "If t, filter out archived channels for listing and selection. If nil, include archived channels."
@@ -481,12 +482,13 @@ Run SUCCESS-CALLBACK on success. Also limit to conversation TYPES when provided.
        (slack-request-create
         slack-conversations-history-url
         team
-        :params (list (cons "channel" channel)
-                      (cons "limit" limit)
-                      (and cursor (cons "cursor" cursor))
-                      (and latest (cons "latest" latest))
-                      (and oldest (cons "oldest" oldest))
-                      (and inclusive (cons "inclusive" inclusive)))
+        :type "POST"
+        :params (-non-nil (list (cons "channel" channel)
+                                (cons "limit" limit)
+                                (and cursor (cons "cursor" cursor))
+                                (and latest (cons "latest" latest))
+                                (and oldest (cons "oldest" oldest))
+                                (and inclusive (cons "inclusive" inclusive))))
         :success (slack-conversations-success-handler
                   team :on-success #'success))))))
 

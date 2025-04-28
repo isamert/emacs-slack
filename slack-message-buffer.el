@@ -962,26 +962,113 @@ A way to use that is to select the right point of the buffer."
 (advice-add 'select-window :around 'slack-advice-select-window)
 (advice-add 'delete-window :before 'slack-advice-delete-window)
 
+;; TODO merge slack-messages-before and slack-messages-after
+(defun slack-messages-before (message-ts room team &optional after-success)
+  (cl-labels ((update-buffer (messages)
+                (if-let ((this (slack-buffer-find 'slack-message-buffer team room)))
+                    (with-current-buffer (slack-buffer-buffer this)
+                      (slack-buffer-widen
+                       (let ((inhibit-read-only t))
+                         (goto-char (point-min))
+
+                         (slack-if-let* ((loading-message-end
+                                          (slack-buffer-loading-message-end-point this)))
+                             (progn
+                               (slack-buffer-delete-overlay this)
+                               (delete-region (point-min) loading-message-end))
+                           (message "loading-message-end not found, oldest: %s" "oldest"))
+
+                         (set-marker lui-output-marker (point-min))
+                         (if (< 0 (length (oref this cursor)))
+                             (slack-buffer-insert-load-more this)
+                           (let ((lui-time-stamp-position nil))
+                             (lui-insert "(no more messages)" t)))
+
+                         (slack-buffer-insert-messages this messages t t)
+                         (lui-recover-output-marker)
+                         (slack-buffer-update-marker-overlay this)
+                         ))
+                      ;; (if current-ts
+                      ;;     (slack-buffer-goto current-ts)
+                      ;;   (goto-char cur-point))
+                      )))
+              (success (messages _cursor)
+                (slack-room-set-messages room messages team)
+                (update-buffer (slack-room-sorted-messages room))
+                (when (functionp after-success)
+                  (funcall after-success))))
+    (slack-conversations-history room team
+                                 :latest message-ts
+                                 :inclusive "true"
+                                 :after-success #'success))
+  )
+
+(defun slack-messages-after (message-ts room team &optional after-success)
+  (cl-labels ((update-buffer (messages)
+                (if-let ((this (slack-buffer-find 'slack-message-buffer team room)))
+                    (with-current-buffer (slack-buffer-buffer this)
+                      (slack-buffer-widen
+                       (let ((inhibit-read-only t))
+                         (goto-char (point-min))
+
+                         (slack-if-let* ((loading-message-end
+                                          (slack-buffer-loading-message-end-point this)))
+                             (progn
+                               (slack-buffer-delete-overlay this)
+                               (delete-region (point-min) loading-message-end))
+                           (message "loading-message-end not found, oldest: %s" "oldest"))
+
+                         (set-marker lui-output-marker (point-min))
+                         (if (< 0 (length (oref this cursor)))
+                             (slack-buffer-insert-load-more this)
+                           (let ((lui-time-stamp-position nil))
+                             (lui-insert "(no more messages)" t)))
+
+                         (slack-buffer-insert-messages this messages t t)
+                         (lui-recover-output-marker)
+                         (slack-buffer-update-marker-overlay this)
+                         ))
+                      ;; (if current-ts
+                      ;;     (slack-buffer-goto current-ts)
+                      ;;   (goto-char cur-point))
+                      )))
+              (success (messages _cursor)
+                (slack-room-set-messages room messages team)
+                (update-buffer (slack-room-sorted-messages room))
+                (when (functionp after-success)
+                  (funcall after-success))))
+    (slack-conversations-history room team
+                                 :oldest message-ts
+                                 :inclusive "true"
+                                 :after-success #'success))
+  )
+
 (defun slack-open-message (team room ts thread-ts)
   "Open message or thread buffer from TEAM, ROOM, TS and THREAD-TS (the latter can be nil)."
-  (if-let ((go-to-link-position `(lambda ()
-                                   (slack-buffer-goto ,(or thread-ts ts))
-                                   (when (and
-                                          (not (equal ,ts (slack-get-ts)))
-                                          (not (equal ,thread-ts (slack-get-ts)))
-                                          slack-open-message-with-browser
-                                          )
-                                     (message "slack-open-message: message not available in emacs-slack buffer, browsing permalink...")
-                                     (browse-url
-                                      (slack-info-to-permalink
-                                       (list
-                                        :team-domain ,(oref team name)
-                                        :room-id ,(oref room id)
-                                        :ts ,ts
-                                        :thread-ts ,thread-ts))))))
-           (thread-message (and (not (slack-im-p room)) (ignore-errors (slack-room-find-message room thread-ts)))))
-      (slack-thread-show-messages thread-message room team go-to-link-position)
-    (slack-room-display room team go-to-link-position)))
+  (cl-labels ((go-to-link-position ()
+                (slack-buffer-goto (or thread-ts ts))
+                (when (and
+                       (not (equal ts (slack-get-ts)))
+                       (not (equal thread-ts (slack-get-ts)))
+                       slack-open-message-with-browser
+                       )
+                  (message "slack-open-message: message not available in emacs-slack buffer browsing permalink...")
+                  (browse-url
+                   (slack-info-to-permalink
+                    (list
+                     :team-domain (oref team name)
+                     :room-id (oref room id)
+                     :ts ts
+                     :thread-ts thread-ts)))))
+              (after-success () (slack-room-display room team #'go-to-link-position)))
+    (if-let ((thread-message (and (not (slack-im-p room)) (ignore-errors (slack-room-find-message room thread-ts)))))
+        ;; TODO handle missing ts also in threads: not sure where that would be: conversation.replies channel, thread-ts
+        (slack-thread-show-messages thread-message room team #'go-to-link-position)
+      (if (or (not slack-test-out-load-older-messages-p) (-contains-p (oref room message-ids) ts))
+          (slack-room-display room team #'go-to-link-position)
+        (slack-messages-before ts room team)
+        (slack-messages-after ts room team #'after-success))
+      )))
 
 (defun slack-quote-and-reply (quote)
   "Prefix QUOTE to reply if region active on a slack message."
