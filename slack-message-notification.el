@@ -135,10 +135,11 @@ Note: this will expire after one notification."
   (add-to-list
    'slack-custom-notification-predicates
    `(lambda (message room team)
-      (with-slots (text blocks) message
+      (with-slots (text blocks attachments) message
         (and (equal ,room-id (oref room id))
              (or (s-contains-p ,needle text)
-                 (s-contains-p ,needle (format "%s" blocks))))))))
+                 (s-contains-p ,needle (format "%s" blocks))
+                 (s-contains-p ,needle (format "%s" attachments))))))))
 
 (defun slack-message-add-persistent-text-custom-notification-predicate (needle room-id)
   "Add a notification for NEEDLE in message text for ROOM-ID channel.
@@ -160,10 +161,11 @@ you can remove by clearing
   (add-to-list
    'slack-custom-notification-predicates
    `(lambda (message room team)
-      (with-slots (text blocks) message
+      (with-slots (text blocks attachments) message
         (and (equal ,room-id (oref room id))
              (or (s-contains-p ,needle text)
-                 (s-contains-p ,needle (format "%s" blocks)))
+                 (s-contains-p ,needle (format "%s" blocks))
+                 (s-contains-p ,needle (format "%s" attachments)))
              'slack-notify-keep)))))
 
 (defun slack-messages-tracking-faces (messages room team)
