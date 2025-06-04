@@ -540,8 +540,11 @@ You need to install `language-detection' for this to work.")
     (format "<%s|%s>" url (or text url))))
 
 (cl-defmethod slack-block-to-mrkdwn ((this slack-rich-text-link-element) &optional _option)
-  (let ((url (oref this url)))
-    url))
+  (let ((text (oref this text))
+        (url (oref this url)))
+    (if text
+        (format "[%s](%s)" text url)
+      url)))
 
 (defun slack-create-rich-text-link-element (payload)
   (make-instance 'slack-rich-text-link-element
