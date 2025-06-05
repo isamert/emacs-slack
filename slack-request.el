@@ -155,36 +155,39 @@
                team :level 'trace)))
 
 (cl-defmethod slack-request ((req slack-request-request) &key (on-success nil) (on-error nil))
-  (let ((team (oref req team)))
+  (let (;; we don't want to save cookies because they break switching teams using the trick from  https://github.com/tkf/emacs-request/issues/155
+        (request--curl-cookie-jar (expand-file-name (make-temp-name "my-cookie-")
+                                                    temporary-file-directory))
+        (team (oref req team)))
     (cl-labels
         ((-on-success (&key data &allow-other-keys)
-                      (unwind-protect
-                          (progn
-                            (funcall (oref req success) :data data)
-                            (slack-request-log-success req data))
-                        (when (functionp on-success)
-                          (funcall on-success))))
+           (unwind-protect
+               (progn
+                 (funcall (oref req success) :data data)
+                 (slack-request-log-success req data))
+             (when (functionp on-success)
+               (funcall on-success))))
          (-on-error (&key error-thrown symbol-status response data)
-                    (unwind-protect
-                        (progn
-                          (slack-if-let* ((retry-after (request-response-header response "retry-after"))
-                                          (retry-after-sec (string-to-number retry-after)))
-                              (progn
-                                (slack-request-retry-request req retry-after-sec)
-                                (slack-request-log-retry req retry-after-sec))
-                            (slack-request-log-failed req error-thrown symbol-status data)
-                            (if (slack-request-retry-failed-request-p req error-thrown symbol-status)
-                                (progn
-                                  (slack-request-log-failed-retry req error-thrown symbol-status data)
-                                  (slack-request-retry-request req 1))
-                              (when (functionp (oref req error))
-                                (funcall (oref req error)
-                                         :error-thrown error-thrown
-                                         :symbol-status symbol-status
-                                         :response response
-                                         :data data)))))
-                      (when (functionp on-error)
-                        (funcall on-error)))))
+           (unwind-protect
+               (progn
+                 (slack-if-let* ((retry-after (request-response-header response "retry-after"))
+                                 (retry-after-sec (string-to-number retry-after)))
+                     (progn
+                       (slack-request-retry-request req retry-after-sec)
+                       (slack-request-log-retry req retry-after-sec))
+                   (slack-request-log-failed req error-thrown symbol-status data)
+                   (if (slack-request-retry-failed-request-p req error-thrown symbol-status)
+                       (progn
+                         (slack-request-log-failed-retry req error-thrown symbol-status data)
+                         (slack-request-retry-request req 1))
+                     (when (functionp (oref req error))
+                       (funcall (oref req error)
+                                :error-thrown error-thrown
+                                :symbol-status symbol-status
+                                :response response
+                                :data data)))))
+             (when (functionp on-error)
+               (funcall on-error)))))
       (with-slots (url type params data parser sync files headers timeout without-auth) req
         (oset req response
               (request
