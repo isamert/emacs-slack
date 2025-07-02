@@ -80,6 +80,7 @@ what is happening in your team."
                  "&sync_desync=1&slack_client=desktop&start_args=%3Fagent%3Dclient%26org_wide_aware%3Dtrue%26agent_version%3D1730299661%26eac_cache_ts%3Dtrue%26cache_ts%3D0%26name_tagging%3Dtrue%26only_self_subteams%3Dtrue%26connect_only%3Dtrue%26ms_latest%3Dtrue&no_query_on_subscribe=1&flannel=3&lazy_channels=1&gateway_server="
                  (slack-team-id team)
                  "-4&batch_presence_aware=1")))
+    (slack-url-cookie-store team)
     (unless websocket-nowait-p
       (slack-ws-set-connect-timeout-timer ws
                                           #'slack-ws-on-timeout
