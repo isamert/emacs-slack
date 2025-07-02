@@ -43,6 +43,12 @@
 (defun slack-need-cookie-p (token)
   (string= "xoxc" (substring token 0 4)))
 
+(defun slack-url-cookie-store (team)
+  "Store required cookies for websocket connection for given TEAM."
+  (url-cookie-store "d" (slack-team-d-cookie team) nil ".slack.com" "/" t)
+  (url-cookie-store "d-s" (slack-team-d-s-cookie team) nil ".slack.com" "/" t)
+  (url-cookie-store "lc" (slack-team-lc-cookie team) nil ".slack.com" "/" t))
+
 (defun slack-parse ()
   (json-parse-buffer :object-type 'plist :array-type 'list :false-object :json-false :null-object nil))
 
