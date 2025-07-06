@@ -107,34 +107,39 @@ Run an action on the data returned with AFTER-SUCCESS."
 (cl-defmethod slack-activity-message-to-string ((this activity-message) team)
   "Format THIS activity-message of TEAM as a string for presentation."
   (with-slots (channel ts is-broadcast thread-ts author-id) this
-    (let* ((room (slack-room-find channel team))
-           (header (propertize (format "%s%s"
-                                       (if (slack-channel-p room)
-                                           "#" "@")
-                                       (or (ignore-errors (slack-room-name room team)) "name not available - try to update channel list")
-                                       )
-                               'face 'slack-search-result-message-header-face)))
-      (propertize (concat header
-                          (when-let ((author (slack-user-name author-id team))) (format " from %s" author))
-                          "\n"
-                          (or
-                           (condition-case err
-                               (when (or ts thread-ts) ;; TODO refactor this: use `slack-message-get-or-fetch'
-                                 (slack-message-body
-                                  (slack-message-get-or-fetch
-                                   ts
-                                   (oref room id) team thread-ts)
-                                  team)
-                                 )
-                             (error
-                              (message "slack-activity-message-to-string: Loading messages failed with: %S" (error-message-string err))
-                              nil))
-                           "TODO")
-                          )
-                  'ts ts
-                  'team-id (oref team id)
-                  'room-id (oref room id)
-                  'thread-ts thread-ts))))
+    (condition-case err ;; this is to find out more easily messages that we fail to handle
+        (let* ((room (slack-room-find channel team))
+               (header (propertize (format "%s%s"
+                                           (if (slack-channel-p room)
+                                               "#" "@")
+                                           (or (ignore-errors (slack-room-name room team)) "name not available - try to update channel list")
+                                           )
+                                   'face 'slack-search-result-message-header-face)))
+          (propertize (concat header
+                              (when-let ((author (slack-user-name author-id team))) (format " from %s" author))
+                              "\n"
+                              (or
+                               (condition-case err
+                                   (when (or ts thread-ts) ;; TODO refactor this: use `slack-message-get-or-fetch'
+                                     (slack-message-body
+                                      (slack-message-get-or-fetch
+                                       ts
+                                       (oref room id) team thread-ts)
+                                      team)
+                                     )
+                                 (error
+                                  (message "slack-activity-message-to-string: Loading messages failed with: %S" (error-message-string err))
+                                  nil))
+                               "TODO")
+                              )
+                      'ts ts
+                      'team-id (oref team id)
+                      'room-id (oref room id)
+                      'thread-ts thread-ts))
+      (error
+
+       (format "TODO there was an error, please report this message at https://github.com/emacs-slack/emacs-slack/issues:\n%s" activity-message)))
+    ))
 
 (defclass activity-reaction ()
   ((user :initarg :user :type string)
