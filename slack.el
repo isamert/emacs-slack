@@ -183,6 +183,8 @@ Evaluate these to update your current team:
 
 (oset slack-current-team token \"\")
 (oset slack-current-team cookie \"\")
+;; optionally if you are using enterprise Slack
+(oset slack-current-team enterprise-token \"\")
 
 Then use `slack-start' to make the changes effective.
 "
