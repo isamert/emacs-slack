@@ -146,9 +146,14 @@
       (slack-conversations-open team
                                 :user-ids (user-ids)
                                 :on-success (lambda (data)
-                                              (let* ((room-id (plist-get (plist-get data :channel) :id))
-                                                     (room (slack-room-find room-id team)))
-                                                (slack-room-display room team)))))))
+                                              (if-let* ((room-id (plist-get (plist-get data :channel) :id))
+                                                        (room (slack-room-find room-id team)))
+                                                  (slack-room-display room team)
+                                                ;; if the room is not in our team cache, we cache the room and then open it
+                                                (slack-conversations-info room-id team
+                                                                          (lambda ()
+                                                                            (let ((room (slack-room-find room-id team)))
+                                                                              (slack-room-display room team))))))))))
 
 (cl-defmethod slack-mpim-p ((room slack-group))
   (oref room is-mpim))

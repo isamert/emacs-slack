@@ -224,6 +224,7 @@
                                                  slack-file-upload-url
                                                  slack-get-permalink-url
                                                  slack-conversations-members-url
+                                                 slack-conversations-open-url
                                                  slack-usergroup-list-url))
                                                (slack-team-token team)
                                              etoken)
