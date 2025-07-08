@@ -1009,6 +1009,10 @@ lots of public channels."
      (slack-request-create
       slack-api-client-userboot-url
       team
+      :data (list (cons "min_channel_updated"
+                        (car (s-split "\\."
+                                      (number-to-string (let ((six-months-in-seconds (* 6 30 24 60 60))) ; Approximating a month as 30 days
+                                                          (time-to-seconds (time-subtract (current-time) six-months-in-seconds))))))))
       :success
       (cl-function
        (lambda (&key data &allow-other-keys)
