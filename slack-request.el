@@ -225,7 +225,9 @@
                                                  slack-get-permalink-url
                                                  slack-conversations-members-url
                                                  slack-conversations-open-url
-                                                 slack-usergroup-list-url))
+                                                 slack-usergroup-list-url
+                                                 slack-conversations-join-url
+                                                 slack-conversations-open-url))
                                                (slack-team-token team)
                                              etoken)
                                          (slack-team-token team))))))

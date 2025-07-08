@@ -46,20 +46,39 @@
 (defconst slack-special-mention-regex "\\(<!\\(here\\|channel\\|everyone\\)>\\)")
 (defconst slack-file-upload-complete-url "https://slack.com/api/files.completeUpload")
 
-(cl-defun slack-message-send-internal (message room team &key (on-success nil) (on-error nil) (payload nil) (files nil))
+(cl-defun slack-message-send-internal (message room team &key (on-success nil) (on-error nil) (payload nil) (files nil) (joined nil))
   (when (slack-string-blankp message)
     (error "Empty message"))
   (if (and (slack-channel-p room)
-           (not (oref room is-member)))
-      (slack-conversations-join
-       room team
-       #'(lambda (_data) (slack-message-send-internal message
-                                                      room
-                                                      team
-                                                      :on-success on-success
-                                                      :on-error on-error
-                                                      :payload payload
-                                                      :files files)))
+           (not (oref room is-member))
+           ;; it happened that mpim rooms can be mislabelled as is-member false, but you have to `slack-conversations-open' them to respond.
+           ;;
+           ;; added this joined input to avoid an infinite loop
+           (not joined))
+      (if (or (oref room is-mpim) (oref room is-im))
+          (slack-conversations-open
+           team :room room
+           :user-ids nil :on-success
+           #'(lambda (_data)
+               (slack-message-send-internal message
+                                            room
+                                            team
+                                            :on-success on-success
+                                            :on-error on-error
+                                            :payload payload
+                                            :files files
+                                            :joined t)))
+        (slack-conversations-join
+         room team
+         #'(lambda (_data) (slack-message-send-internal message
+                                                        room
+                                                        team
+                                                        :on-success on-success
+                                                        :on-error on-error
+                                                        :payload payload
+                                                        :files files
+                                                        :joined t
+                                                        ))))
     (if files
         (slack-message-upload-files team
                                     files
@@ -90,19 +109,19 @@
 (cl-defun slack-chat-post-message (team message &key (on-success nil) (on-error nil))
   (cl-labels
       ((success (&key data &allow-other-keys)
-                (if (eq t (plist-get data :ok))
-                    (and on-success (funcall on-success))
-                  (if on-error
-                      (funcall on-error data)
-                    (slack-log (format "Failed to post message. Error: %s, meta: %s"
-                                       (plist-get data :error)
-                                       (when (plist-get data :response_metadata)
-                                         (mapconcat 'identity
-                                                    (plist-get (plist-get data :response_metadata)
-                                                               :messages)
-                                                    "\n")))
-                               team
-                               :level 'error)))))
+         (if (eq t (plist-get data :ok))
+             (and on-success (funcall on-success))
+           (if on-error
+               (funcall on-error data)
+             (slack-log (format "Failed to post message. Error: %s, meta: %s"
+                                (plist-get data :error)
+                                (when (plist-get data :response_metadata)
+                                  (mapconcat 'identity
+                                             (plist-get (plist-get data :response_metadata)
+                                                        :messages)
+                                             "\n")))
+                        team
+                        :level 'error)))))
     (slack-request
      (slack-request-create
       "https://slack.com/api/chat.postMessage"
