@@ -554,12 +554,18 @@
                   (url-not-blank-p (not (slack-string-blankp url)))
                   (filename (file-name-nondirectory url))
                   (dir (expand-file-name slack-file-dir))
-                  (confirmed-p (y-or-n-p (format "Download %s to %s ? "
-                                                 filename dir))))
-      (slack-url-copy-file url (format "%s%s" dir filename) team
-                           :token (slack-team-token team)
-                           :cookie (slack-team-cookie team)
-                           :sync t)))
+                  (user-path (read-file-name "Save as: " dir nil nil filename)))
+      (unless (string-empty-p user-path)
+        (message "Slack file download started...")
+        (slack-url-copy-file url (expand-file-name user-path) team
+                             :token (slack-team-token team)
+                             :cookie (slack-team-cookie team)
+                             :success (lambda ()
+                                        (dired dir)
+                                        (revert-buffer-quick)
+                                        (goto-char (point-min))
+                                        (re-search-forward (file-name-nondirectory user-path) nil t)
+                                        (message "Slack file download started...Done"))))))
 
 (cl-defmethod slack-file-downloadable-p ((file slack-file))
   (not (slack-string-blankp (oref file url-private-download))))
