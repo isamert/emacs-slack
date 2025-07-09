@@ -120,7 +120,7 @@ Run an action on the data returned with AFTER-SUCCESS."
                               "\n"
                               (or
                                (condition-case err
-                                   (when (or ts thread-ts) ;; TODO refactor this: use `slack-message-get-or-fetch'
+                                   (when (or ts thread-ts)
                                      (slack-message-body
                                       (slack-message-get-or-fetch
                                        ts
