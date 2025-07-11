@@ -138,7 +138,7 @@ Run an action on the data returned with AFTER-SUCCESS."
                       'thread-ts thread-ts))
       (error
 
-       (format "TODO there was an error, please report this message at https://github.com/emacs-slack/emacs-slack/issues:\n%s" activity-message)))
+       (format "TODO there was an error, please report this message at https://github.com/emacs-slack/emacs-slack/issues:\n%s" (list this err))))
     ))
 
 (defclass activity-reaction ()
