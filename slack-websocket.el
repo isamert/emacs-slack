@@ -1019,20 +1019,21 @@ lots of public channels."
          (let ((channels nil)
                (groups nil)
                (ims nil))
-           (cl-loop for c in (plist-get data :channels)
-                    do (cond
-                        ((and
-                          slack-exclude-archived-channels
-                          (eq t (plist-get c :is_archived))))
-                        ((eq t (plist-get c :is_channel))
-                         (push (slack-room-create c 'slack-channel)
-                               channels))
-                        ((eq t (plist-get c :is_im))
-                         (push (slack-room-create c 'slack-im)
-                               ims))
-                        ((eq t (plist-get c :is_group))
-                         (push (slack-room-create c 'slack-group)
-                               groups))))
+           (cl-loop for channel in (plist-get data :channels)
+                    do (let ((c (plist-put channel :is_member t))) ;; by definition this fetches only channel you are member of, so that attribute does not come along
+                         (cond
+                          ((and
+                            slack-exclude-archived-channels
+                            (eq t (plist-get c :is_archived))))
+                          ((eq t (plist-get c :is_channel))
+                           (push (slack-room-create c 'slack-channel)
+                                 channels))
+                          ((eq t (plist-get c :is_im))
+                           (push (slack-room-create c 'slack-im)
+                                 ims))
+                          ((eq t (plist-get c :is_group))
+                           (push (slack-room-create c 'slack-group)
+                                 groups)))))
            (slack-team-set-channels team channels)
            (slack-team-set-groups team groups)
            (slack-team-set-ims team ims))))))))
