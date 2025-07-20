@@ -327,15 +327,21 @@ Run SUCCESS-CALLBACK on success. Also limit to conversation TYPES when provided.
             (slack-if-let*
                 ((meta (plist-get data :response_metadata))
                  (next-cursor (plist-get meta :next_cursor))
-                 (has-cursor (< 0 (length next-cursor)))
-                 ;; Do not fetch after page 100. We are going to get
-                 ;; rate limited here, according to my experience.
-                 (not-too-much (< loop-count 80)))
+                 (has-cursor (< 0 (length next-cursor))))
                 (progn
                   (setq cursor next-cursor)
                   (setq loop-count (1+ loop-count))
                   (run-at-time
-                   (* 0.3 (log loop-count)) nil
+                   ;; this API is a tier 2, so we are allowed only 20 requests per minute ;; TODO abstract this out
+                   (if (= (mod loop-count 20) 0)
+                       (and
+                        (slack-log
+                         (format "slack-conversations-list hit Slack tier 2 API limit at page %s, waiting 1 minute before continuing" loop-count)
+                         team
+                         :level 'warn)
+                        61)
+                     0.1)
+                   nil
                    (lambda ()
                      (slack-log (format ">> Fetching next cursor... Page: %s." loop-count) team :level 'info)
                      (request))))
