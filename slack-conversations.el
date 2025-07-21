@@ -359,6 +359,42 @@ Run SUCCESS-CALLBACK on success. Also limit to conversation TYPES when provided.
              :success #'on-success))))
       (request))))
 
+
+(defun slack-conversations-list--safe-for-rate-limiting (team success-callback)
+  "Retrieve the list of conversations for TEAM.
+Run SUCCESS-CALLBACK on success.
+
+This is an optimized call for rate limiting:
+it does a call for each type and `slack-conversation-list' doesn't do more than 20 api calls."
+  (slack-conversations-list
+   team
+   (lambda (channels groups ims)
+     (funcall success-callback channels groups ims)
+     (slack-log (format "slack-conversations-list: completed private channels channels:%s groups:%s ims:%s" (length channels) (length groups) (length ims)) team :level 'info)
+     (slack-conversations-list
+      team
+      (lambda (channels groups ims)
+        (slack-log (format "slack-conversations-list: completed im channels:%s groups:%s ims:%s" (length channels) (length groups) (length ims)) team :level 'info)
+        (funcall success-callback channels groups ims)
+        (slack-conversations-list
+         team
+         (lambda (channels groups ims)
+           (funcall success-callback channels groups ims)
+           (slack-log (format "slack-conversations-list: completed mpim channels:%s groups:%s ims:%s" (length channels) (length groups) (length ims)) team :level 'info)
+           (slack-conversations-list
+            team
+            (lambda (channels groups ims)
+              (funcall success-callback channels groups ims)
+              (slack-log (format "slack-conversations-list: completed public channels:%s groups:%s ims:%s" (length channels) (length groups) (length ims)) team :level 'info)
+              )
+            (list "public_channel"))
+           )
+         (list "im"))
+        )
+      (list "mpim"))
+     )
+   (list "private_channel")))
+
 (defun slack-conversations-info (channel-id team &optional after-success)
   (slack-request
    (slack-conversations-info-request channel-id team after-success)))

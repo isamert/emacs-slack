@@ -185,6 +185,7 @@ Evaluate these to update your current team:
 (oset slack-current-team cookie \"\")
 ;; optionally if you are using enterprise Slack
 (oset slack-current-team enterprise-token \"\")
+(setq request-curl-options (append request-curl-options (list \"--user-agent\" \"\")) ;; check the request tab, enterprise policies check you use the same user agent as login
 
 Then use `slack-start' to make the changes effective.
 "

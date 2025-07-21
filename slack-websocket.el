@@ -1063,16 +1063,8 @@ lots of public channels."
                       team :level 'info)
            (slack-log "Slack Im List Updated"
                       team :level 'info)))
-      (slack-conversations-list
-       team #'success
-       ;; Do not update public_channel unless slack-update-quick is nil.
-       ;; `slack-conversations-list-update-quick' fetches all joined
-       ;; public channels already.
-       (append
-        '("private_channel"
-          "mpim"
-          "im")
-        (unless slack-update-quick (list "public_channel")))))))
+      (slack-conversations-list--safe-for-rate-limiting team #'success
+                                                        ))))
 
 (defun slack-im-list-update (&optional team after-success)
   "Update TEAM list of private slack conversations.
