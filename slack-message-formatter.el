@@ -127,11 +127,15 @@
             "This file was deleted."
           (let ((type (slack-file-type file))
                 (title (slack-file-title file)))
-            (format "uploaded this %s: %s <%s|open in browser>"
-                    type
-                    (slack-file-link-info (oref file id)
-                                          (slack-unescape title team))
-                    permalink))))
+            (concat
+             (when (string= (oref file mode) "snippet")
+               (propertize (format "```\n%s\n```\n"(oref file preview)) 'face 'slack-preview-face))
+             (format "uploaded this %s: %s <%s|open in browser>"
+                     type
+                     (slack-file-link-info (oref file id)
+                                           (slack-unescape title team))
+                     permalink))
+            )))
     (slack-log (format "No permalink: %S" file)
                team :level 'warn)))
 
