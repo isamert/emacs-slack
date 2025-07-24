@@ -200,7 +200,9 @@ You can add it to append custom instructions that depend on context.")
 
 ;;;###autoload
 (defun slack-start (&optional team)
-  (interactive)
+  (interactive
+   (list
+    slack-current-team))
   (cl-labels ((start
                 (team)
                 (delete-file (request--curl-cookie-jar))
@@ -208,10 +210,10 @@ You can add it to append custom instructions that depend on context.")
                 (slack-team-kill-buffers team)
                 (slack-if-let* ((ws (and (slot-boundp team 'ws)
                                          (oref team ws))))
-                               (progn
-                                 (when (oref ws conn)
-                                   (slack-ws--close ws team))
-                                 (oset ws inhibit-reconnection nil)))
+                    (progn
+                      (when (oref ws conn)
+                        (slack-ws--close ws team))
+                      (oset ws inhibit-reconnection nil)))
                 (slack-authorize team)))
     (if team
         (start team)
