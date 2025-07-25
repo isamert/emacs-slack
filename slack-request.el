@@ -162,8 +162,9 @@
 
 (cl-defmethod slack-request ((req slack-request-request) &key (on-success nil) (on-error nil))
   (let (;; we don't want to save cookies because they break switching teams using the trick from  https://github.com/tkf/emacs-request/issues/155
-        (request--curl-cookie-jar (expand-file-name (make-temp-name "my-cookie-")
-                                                    temporary-file-directory))
+        (request--curl-cookie-jar
+         (if (oref req sync) request--curl-cookie-jar (expand-file-name (make-temp-name "my-cookie-")
+                                                                        temporary-file-directory)))
         (team (oref req team)))
     (cl-labels
         ((-on-success (&key data &allow-other-keys)
@@ -235,9 +236,10 @@
                    (list (cons "Cookie" (format "d=%s; " (slack-team-cookie team)))))
                  headers)
                 :parser parser
-                :success #'-on-success
-                :error #'-on-error
-                :timeout timeout))))))
+                :success (unless sync #'-on-success)
+                :error (unless sync #'-on-error)
+                :timeout timeout))
+        req))))
 
 
 (cl-defmacro slack-request-handle-error ((data req-name &optional handler) &body body)

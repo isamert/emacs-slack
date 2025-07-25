@@ -420,7 +420,7 @@ it does a call for each type and `slack-conversation-list' doesn't do more than 
      :params (list (cons "channel" channel-id))
      :success #'success)))
 
-(cl-defun slack-conversations-replies (room ts team &key after-success (cursor nil) (oldest nil) (limit nil) (latest nil) (inclusive nil))
+(cl-defun slack-conversations-replies (room ts team &key after-success (cursor nil) (oldest nil) (limit nil) (latest nil) (inclusive nil) (sync nil))
   (let ((channel (oref room id)))
     (cl-labels
         ((create-message (payload)
@@ -462,8 +462,8 @@ it does a call for each type and `slack-conversation-list' doesn't do more than 
                       (cons "ts" ts)
                       (if cursor (cons "cursor" cursor)
                         (cons "oldest" oldest)))
-        :success #'on-success)))))
-
+        :success #'on-success
+        :sync sync)))))
 (defun slack-conversations-close (room team &optional after-success)
   (let ((channel (oref room id)))
     (cl-labels
@@ -498,7 +498,8 @@ it does a call for each type and `slack-conversation-list' doesn't do more than 
                                             (latest nil)
                                             (oldest nil)
                                             (inclusive nil)
-                                            (limit "100"))
+                                            (limit "100")
+                                            (sync nil))
   (let ((channel (oref room id)))
     (cl-labels
         ((callback (messages next-cursor)
@@ -532,7 +533,8 @@ it does a call for each type and `slack-conversation-list' doesn't do more than 
                                 (and oldest (cons "oldest" oldest))
                                 (and inclusive (cons "inclusive" inclusive))))
         :success (slack-conversations-success-handler
-                  team :on-success #'success))))))
+                  team :on-success #'success)
+        :sync sync)))))
 
 (defun slack-conversations-members (room team &optional cursor after-success)
   (if (slack-room-members-loaded-p room)
