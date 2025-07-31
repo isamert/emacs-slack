@@ -31,6 +31,8 @@
 (require 'request)
 (require 'slack-util)
 (require 'slack-log)
+(require 'slack-log)
+(require 'slack-defcustoms)
 
 (defconst slack-request-max-retry 3
   "Maximum number of retries for failed request.")
@@ -162,6 +164,7 @@
 
 (cl-defmethod slack-request ((req slack-request-request) &key (on-success nil) (on-error nil))
   (let (;; we don't want to save cookies because they break switching teams using the trick from  https://github.com/tkf/emacs-request/issues/155
+        (request-curl-options slack-request-curl-options)
         (request--curl-cookie-jar
          (if (oref req sync) request--curl-cookie-jar (expand-file-name (make-temp-name "my-cookie-")
                                                                         temporary-file-directory)))

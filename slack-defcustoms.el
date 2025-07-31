@@ -69,5 +69,12 @@ The UX is broken for now, it is really about having something somewhat functiona
   :type 'boolean
   :group 'slack)
 
+(defcustom slack-request-curl-options nil
+  "List of curl command options.
+
+List of strings that will be passed to every curl invocation.
+You can pass extra options here, like setting the proxy."
+  :type '(repeat string))
+
 (provide 'slack-defcustoms)
 ;;; slack-defcustoms.el ends here
