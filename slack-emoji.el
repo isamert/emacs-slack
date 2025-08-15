@@ -40,7 +40,7 @@
   "https://raw.githubusercontent.com/iamcal/emoji-data/master/emoji.json")
 ;; this is to get each emoji image
 (defconst slack-emoji-master-image-url
-  "https://raw.githubusercontent.com/iamcal/emoji-data/master/img-google-64/")
+  "https://github.com/iamcal/emoji-data/raw/refs/heads/master/img-google-64/")
 
 (defvar slack-emoji-master (make-hash-table :test 'equal :size 1600))
 
@@ -92,18 +92,17 @@ This runs asynchronously, splitting the emojis in batches of `slack-emoji-job-ba
             (data "slack-download-emoji")
             (emojify-create-emojify-emojis)
             (let* ((default-emojis nil)
-                   (_ (slack-emoji-fetch-default-emojis-data
-                       team
-                       (lambda (&rest default-data)
-                         (--> (plist-get default-data :data)
-                              (--map (list
-                                      (intern (concat ":" (plist-get it :short_name)))
-                                      (concat
-                                       slack-emoji-master-image-url
-                                       (plist-get it :image)))
-                                     it)
-                              (-flatten it)
-                              (setq default-emojis it)))))
+                   (_ (--> (slack-emoji-fetch-default-emojis-data team)
+                           (oref it response)
+                           (request-response-data it)
+                           (--map (list
+                                   (intern (concat ":" (plist-get it :short_name)))
+                                   (concat
+                                    slack-emoji-master-image-url
+                                    (plist-get it :image)))
+                                  it)
+                           (-flatten it)
+                           (setq default-emojis it)))
                    (emojis (setq slack-emoji-all (append (plist-get data :emoji) default-emojis))))
               (--> emojis
                    (-partition-all slack-emoji-job-batch-size it)
@@ -168,13 +167,12 @@ This runs asynchronously, splitting the emojis in batches of `slack-emoji-job-ba
                (select)))
     (completing-read "Emoji: " (hash-table-keys slack-emoji-master))))
 
-(defun slack-emoji-fetch-default-emojis-data (team success)
+(defun slack-emoji-fetch-default-emojis-data (team)
   (slack-request
    (slack-request-create
     slack-emoji-master-data-url
     team
     :type "GET"
-    :success success
     :without-auth t
     :sync t
     )))
