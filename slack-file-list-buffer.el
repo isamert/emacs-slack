@@ -145,6 +145,7 @@
 
 (cl-defmethod slack-buffer-file-to-string ((this slack-file-list-buffer) file)
   (let* ((team (slack-buffer-team this))
+         (lui-time-stamp-format "[%Y-%m-%d %H:%M] ")
          (lui-time-stamp-time (slack-message-time-stamp file))
          (thumb (slack-image-string (slack-file-thumb-image-spec file 80)))
          (header (format "%s%s"
@@ -169,7 +170,8 @@
     (slack-format-message header description)))
 
 (cl-defmethod slack-buffer-insert ((this slack-file-list-buffer) message &optional not-tracked-p)
-  (let ((lui-time-stamp-time (slack-message-time-stamp message))
+  (let ((lui-time-stamp-format "[%Y-%m-%d %H:%M] ")
+        (lui-time-stamp-time (slack-message-time-stamp message))
         (ts (slack-file-id message)))
     (lui-insert-with-text-properties
      (slack-buffer-file-to-string this message)

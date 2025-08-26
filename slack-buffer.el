@@ -57,7 +57,6 @@
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "RET") #'slack-load-more-message)
     map))
-
 ;; to have working link buttons
 ;; https://github.com/emacs-slack/emacs-slack/issues/547#issuecomment-1542119271
 (advice-add 'lui-buttonize-urls :before-until (lambda () (derived-mode-p 'slack-mode)))
@@ -201,7 +200,8 @@
                (signal (car err) (cdr err)))))))
 
 (cl-defmethod slack-buffer-insert ((this slack-buffer) message &optional not-tracked-p)
-  (let ((lui-time-stamp-time (slack-message-time-stamp message))
+  (let ((lui-time-stamp-format "[%Y-%m-%d %H:%M] ")
+        (lui-time-stamp-time (slack-message-time-stamp message))
         (team (slack-buffer-team this)))
     (lui-insert-with-text-properties
      (slack-message-to-string message team)

@@ -62,7 +62,8 @@
         (slack-buffer--replace this ts))))
 
 (cl-defmethod slack-buffer-insert ((this slack-stars-buffer) message &optional not-tracked-p)
-  (let ((lui-time-stamp-time (seconds-to-time
+  (let ((lui-time-stamp-format "[%Y-%m-%d %H:%M] ")
+        (lui-time-stamp-time (seconds-to-time
                               (string-to-number
                                (slack-ts
                                 message)))))

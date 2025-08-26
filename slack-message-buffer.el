@@ -443,7 +443,8 @@
 
 (cl-defmethod slack-buffer-insert ((this slack-message-buffer) message
                                    &optional not-tracked-p prev-message)
-  (let* ((lui-time-stamp-time (slack-message-time-stamp message))
+  (let* ((lui-time-stamp-format "[%Y-%m-%d %H:%M] ")
+         (lui-time-stamp-time (slack-message-time-stamp message))
          (ts (slack-ts message))
          (prev (or prev-message (slack-buffer-prev-message this message)))
          (merge-message-p (slack-buffer-merge-message-p this message prev))
@@ -969,7 +970,7 @@ A way to use that is to select the right point of the buffer."
 
 ;; TODO merge slack-messages-before and slack-messages-after
 (defun slack-messages-before (message-ts room team &optional after-success)
-  (cl-labels ((update-buffer (messages)
+  (cl-labels ((update-buffer (messages insert-load-more)
                 (if-let ((this (slack-buffer-find 'slack-message-buffer team room)))
                     (with-current-buffer (slack-buffer-buffer this)
                       (slack-buffer-widen
@@ -984,8 +985,21 @@ A way to use that is to select the right point of the buffer."
                            (message "loading-message-end not found, oldest: %s" "oldest"))
 
                          (set-marker lui-output-marker (point-min))
-                         (if (< 0 (length (oref this cursor)))
-                             (slack-buffer-insert-load-more this)
+                         (if insert-load-more
+                             (let ((str (propertize "(load more)\n"
+                                                    'face '(:underline t :weight bold)
+                                                    'keymap (let ((map (make-sparse-keymap)))
+                                                              (define-key map (kbd "RET")
+                                                                          (lambda ()
+                                                                            (interactive)
+                                                                            (slack-conversations-history room team
+                                                                                                         :latest (slack-ts (car messages))
+                                                                                                         :inclusive "true"
+                                                                                                         :after-success #'success)))
+                                                              map)
+                                                    'loading-message t)))
+                               (let ((lui-time-stamp-position nil))
+                                 (lui-insert str t)))
                            (let ((lui-time-stamp-position nil))
                              (lui-insert "(no more messages)" t)))
 
@@ -997,11 +1011,22 @@ A way to use that is to select the right point of the buffer."
                       ;;     (slack-buffer-goto current-ts)
                       ;;   (goto-char cur-point))
                       )))
-              (success (messages _cursor)
-                (slack-room-set-messages room messages team)
-                (update-buffer (slack-room-sorted-messages room))
-                (when (functionp after-success)
-                  (funcall after-success))))
+              (success (messages _cursor) ;; cursor -> timestamp -> check in current messages the timestamp is inclued, if not add load more with an inline of the cursor? It will not be retained if I have to close the buffer and the messages were cached! Maybe I can just do the cursor? Or just ignore the cursor and _use the message timestamp to load just after or before_. The latter.
+                (let* ( ;; 1. get room messages
+                       (room-messages (oref room messages))
+                       ;; 2. (for before) get the first and last message
+                       (room-message-ts-list (-map 'slack-ts-to-time (hash-table-keys room-messages)))
+                       (message-ts-ascending (-sort 'time-less-p (-map 'slack-ts-to-time (-map 'slack-ts messages))))
+                       (message-earliest (nth 0 message-ts-ascending))
+                       ;; 3. check the oldest retrieved message ts is older than any of the above
+                       (do-we-need-load-more-p (not (-contains-p room-message-ts-list message-earliest)))
+                       ;; 4. if so add load more else don't
+                       ;; (the logic for the after function is similar)
+                       )
+                  (slack-room-set-messages room messages team)
+                  (update-buffer (slack-room-sorted-messages room) do-we-need-load-more-p)
+                  (when (functionp after-success)
+                    (funcall after-success)))))
     (slack-conversations-history room team
                                  :latest message-ts
                                  :inclusive "true"
@@ -1009,7 +1034,7 @@ A way to use that is to select the right point of the buffer."
   )
 
 (defun slack-messages-after (message-ts room team &optional after-success)
-  (cl-labels ((update-buffer (messages)
+  (cl-labels ((update-buffer (messages load-more-p)
                 (if-let ((this (slack-buffer-find 'slack-message-buffer team room)))
                     (with-current-buffer (slack-buffer-buffer this)
                       (slack-buffer-widen
@@ -1024,12 +1049,24 @@ A way to use that is to select the right point of the buffer."
                            (message "loading-message-end not found, oldest: %s" "oldest"))
 
                          (set-marker lui-output-marker (point-min))
-                         (if (< 0 (length (oref this cursor)))
-                             (slack-buffer-insert-load-more this)
+                         (slack-buffer-insert-messages this messages t t)
+                         (if load-more-p
+                             (let ((str (propertize "(load more)\n"
+                                                    'face '(:underline t :weight bold)
+                                                    'keymap (let ((map (make-sparse-keymap)))
+                                                              (define-key map (kbd "RET")
+                                                                          (lambda ()
+                                                                            (interactive)
+                                                                            (slack-conversations-history room team
+                                                                                                         :oldest message-ts
+                                                                                                         :inclusive "true"
+                                                                                                         :after-success #'success)))
+                                                              map)
+                                                    'loading-message t)))
+                               (let ((lui-time-stamp-position nil))
+                                 (lui-insert str t)))
                            (let ((lui-time-stamp-position nil))
                              (lui-insert "(no more messages)" t)))
-
-                         (slack-buffer-insert-messages this messages t t)
                          (lui-recover-output-marker)
                          (slack-buffer-update-marker-overlay this)
                          ))
@@ -1038,10 +1075,21 @@ A way to use that is to select the right point of the buffer."
                       ;;   (goto-char cur-point))
                       )))
               (success (messages _cursor)
-                (slack-room-set-messages room messages team)
-                (update-buffer (slack-room-sorted-messages room))
-                (when (functionp after-success)
-                  (funcall after-success))))
+                (let* ( ;; 1. get room messages
+                       (room-messages (oref room messages))
+                       ;; 2. (for before) get the first and last message
+                       (room-message-ts-list (-map 'slack-ts-to-time (hash-table-keys room-messages)))
+                       (message-ts-ascending (-sort 'time-less-p (-map 'slack-ts-to-time (-map 'slack-ts messages))))
+                       (message-latest (-last-item message-ts-ascending))
+                       ;; 3. check the oldest retrieved message ts is older than any of the above
+                       (do-we-need-load-more-p (not (-contains-p room-message-ts-list message-latest)))
+                       ;; 4. if so add load more else don't
+                       ;; (the logic for the after function is similar)
+                       )
+                  (slack-room-set-messages room messages team)
+                  (update-buffer (slack-room-sorted-messages room) do-we-need-load-more-p)
+                  (when (functionp after-success)
+                    (funcall after-success)))))
     (slack-conversations-history room team
                                  :oldest message-ts
                                  :inclusive "true"
