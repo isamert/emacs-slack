@@ -63,7 +63,7 @@ When nil, they are not shown anymore for all teams."
   :type 'boolean
   :group 'slack)
 
-(defcustom slack-test-out-load-older-messages-p nil
+(defcustom slack-test-out-load-older-messages-p t
   "This is a feature toggle for testing out loading old messages in buffer when searching an older message via search and feed.
 The UX is broken for now, it is really about having something somewhat functional when searching."
   :type 'boolean

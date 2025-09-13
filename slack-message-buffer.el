@@ -101,6 +101,20 @@
       (format  "*slack: %s*"
                room-name)))
 
+(cl-defmethod slack-buffer-create-kill-hook ((this slack-message-buffer))
+  "Trim the room's in-memory messages when a message buffer is killed.
+So only the last 100 are retained. This keeps state light
+and forces recomputation of load-more placeholders next time.
+"
+  (let ((parent (cl-call-next-method)))
+    (lambda ()
+      (with-demoted-errors "slack-message-buffer kill hook error: %S"
+        ;; Run base cleanup (remove buffer from team cache)
+        (funcall parent)
+        ;; Trim messages kept in the room
+        (slack-if-let* ((room (slack-buffer-room this)))
+            (slack-room-trim-messages room 100))))))
+
 (cl-defmethod slack-buffer-last-read ((this slack-message-buffer))
   (oref (slack-buffer-room this) last-read))
 

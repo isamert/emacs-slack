@@ -356,13 +356,15 @@ or not."
          (thread-ts-second-half (nth 1 thread-ts-in-halves)))
     ;; TODO this block is time consuming! We could retrieve these messages in parallel using the same waiting mechanism (accept-process-output,) but waiting on the list of messages. Needs to be done in caller, possibly passing the messages as an optional context parameter.
     (or message
-        (-some--> (if (and
-                       thread-ts-second-half
-                       (not (string-equal ts thread-ts)))
+        (-some--> (if (and thread-ts-second-half
+                           (not (string-equal ts thread-ts)))
+                      ;; When TS belongs to a thread reply, fetch via replies
+                      ;; using THREAD-TS (parent) to anchor.
                       (slack-conversations-replies room ts team
                                                    :inclusive "true"
                                                    :limit "1"
                                                    :sync t)
+                    ;; Otherwise fetch from channel history at TS
                     (slack-conversations-history room team
                                                  :latest ts
                                                  :inclusive "true"

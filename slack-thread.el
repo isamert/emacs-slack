@@ -56,10 +56,10 @@ Any other non-nil value: send to the room."
   (let* ((ts (slack-thread-ts this))
          (oldest (or oldest ts)))
     (cl-labels ((success (messages next-cursor has-more)
-                         (slack-room-set-messages room messages team)
-                         (slack-message-set-replies room ts messages cursor)
-                         (when (functionp after-success)
-                           (funcall after-success next-cursor has-more))))
+                  (slack-room-set-messages room messages team)
+                  (slack-message-set-replies room ts messages cursor)
+                  (when (functionp after-success)
+                    (funcall after-success next-cursor has-more))))
       (slack-conversations-replies room ts team
                                    :after-success #'success
                                    :cursor cursor

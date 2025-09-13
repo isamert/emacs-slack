@@ -199,6 +199,22 @@
   (oset room messages (make-hash-table :test 'equal :size 300))
   (oset room message-ids '()))
 
+
+(cl-defmethod slack-room-trim-messages ((room slack-room) &optional (n 100))
+  "Keep only the last N messages in ROOM.
+Defaults to 100. Used to reduce memory after closing buffers."
+  (with-slots (messages message-ids) room
+    (let* ((len (length message-ids))
+           (keep-ids (if (> len n)
+                         (last message-ids n)
+                       message-ids))
+           (new-ht (make-hash-table :test 'equal :size (max n 10))))
+      (dolist (ts keep-ids)
+        (slack-if-let* ((m (gethash ts messages)))
+            (puthash ts m new-ht)))
+      (oset room messages new-ht)
+      (oset room message-ids (cl-sort keep-ids #'string<)))))
+
 (cl-defmethod slack-room-set-messages ((room slack-room) messages team)
   (cl-loop for m in messages
            do (let ((ts (slack-ts m)))
