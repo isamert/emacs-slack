@@ -145,11 +145,13 @@
                       'face 'slack-user-active-face))))
 
 (defun slack-user-set-status ()
+  "Set user status icon interactively requesting emoji, text and expiration time."
   (interactive)
   (let* ((team (slack-team-select))
          (emoji (slack-select-emoji team))
-         (text (read-from-minibuffer "Text: ")))
-    (slack-user-set-status-request  team emoji text)))
+         (text (read-from-minibuffer "Text: "))
+         (minutes (read-number "Expires in ? minutes (0 for no expiration): ")))
+    (slack-user-set-status-request  team emoji text (floor (+ (float-time) (* minutes 60))))))
 
 (defun slack-user-reset-status ()
   (interactive)
@@ -158,11 +160,13 @@
          (text ""))
     (slack-user-set-status-request  team emoji text)))
 
-(defun slack-user-set-status-request (team emoji text)
+(defun slack-user-set-status-request (team emoji text &optional unix-expire-by-time)
+  "Set status to EMOJI and TEXT for user in TEAM.
+Optionally expire the message at UNIX-EXPIRE-BY-TIME."
   (cl-labels ((on-success
-               (&key data &allow-other-keys)
-               (slack-request-handle-error
-                (data "slack-user-set-status-request"))))
+                (&key data &allow-other-keys)
+                (slack-request-handle-error
+                 (data "slack-user-set-status-request"))))
     (slack-request
      (slack-request-create
       slack-user-profile-set-url
@@ -171,7 +175,8 @@
       :data (list (cons "id" (oref team self-id))
                   (cons "profile"
                         (json-encode (list (cons "status_text" text)
-                                           (cons "status_emoji" emoji)))))
+                                           (cons "status_emoji" emoji)
+                                           (cons "status_expiration" unix-expire-by-time)))))
       :success #'on-success))))
 
 (defface slack-user-profile-header-face
