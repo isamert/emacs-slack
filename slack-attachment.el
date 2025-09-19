@@ -181,7 +181,7 @@
   ;; (message "PAYLOAD: %s" payload)
 
   (if (plist-get payload :is_share)
-      (apply #'slack-shared-message "shared-attachment"
+      (apply #'make-instance 'slack-shared-message
              (slack-collect-slots 'slack-shared-message payload))
     (apply #'slack-attachment "attachment"
            (slack-collect-slots 'slack-attachment payload))))

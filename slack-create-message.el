@@ -37,7 +37,7 @@
          (slack-collect-slots 'slack-reaction payload)))
 
 (defun slack-reply-broadcast-message-create (payload)
-  (apply #'slack-reply-broadcast-message "reply-broadcast"
+  (apply #'make-instance 'slack-reply-broadcast-message
          (slack-collect-slots 'slack-reply-broadcast-message payload)))
 
 (defun slack-room-or-children-p (room)
@@ -102,7 +102,7 @@
               ((or (and subtype (string= "bot_message" subtype))
                    (and (plist-member payload :bot_id)
                         (plist-get payload :bot_id)))
-               (apply #'slack-bot-message "bot-msg"
+               (apply #'make-instance 'slack-bot-message
                       (slack-collect-slots 'slack-bot-message payload)))
               ((or (and subtype (or (string-equal "reply_broadcast" subtype)
                                     (string= "thread_broadcast" subtype)))
@@ -110,7 +110,7 @@
                    (plist-get payload :is_thread_broadcast))
                (slack-reply-broadcast-message-create payload))
               ((and (plist-member payload :user) (plist-get payload :user))
-               (apply #'slack-user-message "user-msg"
+               (apply #'make-instance 'slack-user-message
                       (slack-collect-slots 'slack-user-message payload)))
               (t (progn
                    (slack-log (format "Unknown Message Type: %s" payload)
