@@ -102,24 +102,24 @@
 (defun slack-attachment-action-create (payload)
   (cl-labels
       ((create-option (option)
-                      (apply #'make-instance
-                             'slack-attachment-select-action-option
-                             (slack-collect-slots
-                              'slack-attachment-select-action-option
-                              option)))
+         (apply #'make-instance
+                'slack-attachment-select-action-option
+                (slack-collect-slots
+                 'slack-attachment-select-action-option
+                 option)))
        (create-option-group
-        (option-group)
-        (when (plist-get option-group :options)
-          (setq option-group
-                (plist-put option-group
-                           :options
-                           (mapcar #'create-option
-                                   (plist-get option-group :options)))))
-        (apply #'make-instance
-               'slack-attachment-select-action-option-group
-               (slack-collect-slots
-                'slack-attachment-select-action-option-group
-                option-group))))
+         (option-group)
+         (when (plist-get option-group :options)
+           (setq option-group
+                 (plist-put option-group
+                            :options
+                            (mapcar #'create-option
+                                    (plist-get option-group :options)))))
+         (apply #'make-instance
+		'slack-attachment-select-action-option-group
+		(slack-collect-slots
+                 'slack-attachment-select-action-option-group
+                 option-group))))
     (let* ((properties payload)
            (type (plist-get payload :type)))
 
@@ -183,7 +183,7 @@
   (if (plist-get payload :is_share)
       (apply #'make-instance 'slack-shared-message
              (slack-collect-slots 'slack-shared-message payload))
-    (apply #'slack-attachment "attachment"
+    (apply #'make-instance 'slack-attachment
            (slack-collect-slots 'slack-attachment payload))))
 
 (cl-defmethod slack-image-spec ((this slack-attachment))
@@ -200,13 +200,13 @@
 
 (defface slack-message-action-primary-face
   '((t (:box (:line-width 1 :style released-button)
-        :color "#2aa198")))
+             :color "#2aa198")))
   "Face used to primary action."
   :group 'slack)
 
 (defface slack-message-action-danger-face
   '((t (:box (:line-width 1 :style released-button)
-        :color "#FF6E64")))
+             :color "#FF6E64")))
   "Face used to danger action."
   :group 'slack)
 
@@ -244,16 +244,16 @@
 
       (cl-labels
           ((log-error (err)
-                      (slack-log (format "Error: %s, URL: %s, PARAMS: %s"
-                                         err
-                                         url
-                                         params)
-                                 team :level 'error))
+             (slack-log (format "Error: %s, URL: %s, PARAMS: %s"
+                                err
+                                url
+                                params)
+                        team :level 'error))
            (on-success (&key data &allow-other-keys)
-                       (slack-request-handle-error
-                        (data "slack-attachment-action-get-suggestions"
-                              #'log-error))
-                       (funcall after-success (plist-get data :options))))
+             (slack-request-handle-error
+              (data "slack-attachment-action-get-suggestions"
+                    #'log-error))
+             (funcall after-success (plist-get data :options))))
         (slack-request
          (slack-request-create
           url
@@ -274,19 +274,19 @@
       (let ((option))
         (cl-labels
             ((on-success (options)
-                         (let ((selected
-                                (funcall slack-completing-read-function
-                                         ""
-                                         (cons "" (mapcar #'(lambda (e)
-                                                              (plist-get e :text))
-                                                          options))
-                                         nil t)))
+               (let ((selected
+                      (funcall slack-completing-read-function
+                               ""
+                               (cons "" (mapcar #'(lambda (e)
+                                                    (plist-get e :text))
+                                                options))
+                               nil t)))
 
-                           (setq option
-                                 (cl-find-if #'(lambda (e)
-                                                 (string= selected
-                                                          (plist-get e :text)))
-                                             options)))))
+                 (setq option
+                       (cl-find-if #'(lambda (e)
+                                       (string= selected
+                                                (plist-get e :text)))
+                                   options)))))
           (slack-attachment-action-get-suggestions this
                                                    team
                                                    common-payload

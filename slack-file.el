@@ -264,8 +264,8 @@
 (cl-defmethod slack-merge ((old slack-file) new)
   (cl-labels
       ((slack-merge-string-list
-        (new old)
-        (cl-remove-duplicates (append new old) :test #'string=)))
+         (new old)
+         (cl-remove-duplicates (append new old) :test #'string=)))
 
     (slack-merge-list (oref old channels) (oref new channels))
     (slack-merge-list (oref old groups) (oref new groups))
@@ -308,11 +308,11 @@
                                 (mapcar #'(lambda (e)
                                             (slack-file-create-email-from e 'cc))
                                         (plist-get payload :cc)))
-                     (apply #'slack-file-email "file-email"
+                     (apply #'make-instance 'slack-file-email
                             (slack-collect-slots 'slack-file-email
                                                  payload)))
 
-                 (apply #'slack-file "file"
+                 (apply #'make-instance 'slack-file
                         (slack-collect-slots 'slack-file payload))))
          )
     file))
@@ -332,26 +332,26 @@
 (defun slack-file-request-info (file-id page team &optional after-success)
   (cl-labels
       ((on-file-info
-        (&key data &allow-other-keys)
-        (slack-request-handle-error
-         (data "slack-file-info")
-         (let* ((file (slack-file-create (plist-get data :file)))
-                (comments (mapcar #'slack-file-comment-create
-                                  (plist-get data :comments)))
-                (content (make-instance 'slack-file-content
-                                        :content
-                                        (plist-get data :content)
-                                        :content_highlight_html
-                                        (plist-get data :content_highlight_html)
-                                        :content_highlight_css
-                                        (plist-get data :content_highlight_css)
-                                        :is_truncated
-                                        (eq t (plist-get data :is_truncated)))))
-           (oset file comments comments)
-           (oset file content content)
-           (slack-file-pushnew file team)
-           (if after-success
-               (funcall after-success file team))))))
+         (&key data &allow-other-keys)
+         (slack-request-handle-error
+          (data "slack-file-info")
+          (let* ((file (slack-file-create (plist-get data :file)))
+                 (comments (mapcar #'slack-file-comment-create
+                                   (plist-get data :comments)))
+                 (content (make-instance 'slack-file-content
+                                         :content
+                                         (plist-get data :content)
+                                         :content_highlight_html
+                                         (plist-get data :content_highlight_html)
+                                         :content_highlight_css
+                                         (plist-get data :content_highlight_css)
+                                         :is_truncated
+                                         (eq t (plist-get data :is_truncated)))))
+            (oset file comments comments)
+            (oset file content content)
+            (slack-file-pushnew file team)
+            (if after-success
+		(funcall after-success file team))))))
     (slack-request
      (slack-request-create
       slack-file-info-url
@@ -414,8 +414,8 @@
        (content (buffer-substring-no-properties beg end)))
       (cl-labels
           ((on-success (&key data &allow-other-keys)
-                       (slack-request-handle-error
-                        (data "slack-file-upload-snippet"))))
+             (slack-request-handle-error
+              (data "slack-file-upload-snippet"))))
         (slack-request
          (slack-request-create
           slack-file-upload-url
@@ -522,25 +522,25 @@
                                         (after-success nil))
   (cl-labels
       ((callback (paging)
-                 (when (functionp after-success)
-                   (funcall after-success
-                            (plist-get paging :page)
-                            (plist-get paging :pages))))
+         (when (functionp after-success)
+           (funcall after-success
+                    (plist-get paging :page)
+                    (plist-get paging :pages))))
        (success (&key data &allow-other-keys)
-                (let* ((files (mapcar #'slack-file-create
-                                      (plist-get data :files)))
-                       (paging (plist-get data :paging))
-                       (user-ids (slack-team-missing-user-ids
-                                  team (cl-loop for file in files
-                                                nconc (slack-message-user-ids file)))))
-                  (when (string= page "1")
-                    (oset team files (make-hash-table :test 'equal))
-                    (oset team file-ids '()))
-                  (slack-team-set-files team files)
-                  (if (< 0 (length user-ids))
-                      (slack-users-info-request
-                       user-ids team :after-success #'(lambda () (callback paging)))
-                    (callback paging)))))
+         (let* ((files (mapcar #'slack-file-create
+                               (plist-get data :files)))
+                (paging (plist-get data :paging))
+                (user-ids (slack-team-missing-user-ids
+                           team (cl-loop for file in files
+                                         nconc (slack-message-user-ids file)))))
+           (when (string= page "1")
+             (oset team files (make-hash-table :test 'equal))
+             (oset team file-ids '()))
+           (slack-team-set-files team files)
+           (if (< 0 (length user-ids))
+               (slack-users-info-request
+                user-ids team :after-success #'(lambda () (callback paging)))
+             (callback paging)))))
     (slack-request
      (slack-request-create
       slack-file-list-url
@@ -552,23 +552,23 @@
 (cl-defmethod slack-file-download ((file slack-file) team)
   "Download FILE at location for TEAM."
   (slack-if-let*
-   ((url (oref file url-private-download))
-    (url-not-blank-p (not (slack-string-blankp url)))
-    (filename (file-name-nondirectory url))
-    (dir (expand-file-name slack-file-dir))
-    (user-path (read-file-name "Save as: " dir nil nil filename)))
-   (if (string-empty-p user-path)
-       (error "Please provide a valid download path")
-     (message "Slack file download started...")
-     (slack-url-copy-file url (expand-file-name user-path) team
-                          :token (slack-team-token team)
-                          :cookie (slack-team-cookie team)
-                          :success (lambda ()
-                                     (dired dir)
-                                     (revert-buffer-quick)
-                                     (goto-char (point-min))
-                                     (re-search-forward (file-name-nondirectory user-path) nil t)
-                                     (message "Slack file download started...Done"))))))
+      ((url (oref file url-private-download))
+       (url-not-blank-p (not (slack-string-blankp url)))
+       (filename (file-name-nondirectory url))
+       (dir (expand-file-name slack-file-dir))
+       (user-path (read-file-name "Save as: " dir nil nil filename)))
+      (if (string-empty-p user-path)
+	  (error "Please provide a valid download path")
+	(message "Slack file download started...")
+	(slack-url-copy-file url (expand-file-name user-path) team
+                             :token (slack-team-token team)
+                             :cookie (slack-team-cookie team)
+                             :success (lambda ()
+					(dired dir)
+					(revert-buffer-quick)
+					(goto-char (point-min))
+					(re-search-forward (file-name-nondirectory user-path) nil t)
+					(message "Slack file download started...Done"))))))
 
 (cl-defmethod slack-file-downloadable-p ((file slack-file))
   (not (slack-string-blankp (oref file url-private-download))))
