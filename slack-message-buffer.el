@@ -1185,10 +1185,13 @@ Optionally pass ON-SUCCESS to run some effect after."
                 (oref slack-current-buffer room-id) (slack-get-ts)
                 (lambda (&rest _args) (message "Removing of message preview completed"))))
   (let* ((team (slack-team-find team-id))
-         (token (oref team token)))
+         (token (or (slack-team-enterprise-token team) (slack-team-token team))))
     (slack-request
      (slack-request-create
-      (format "https://slack.com/api/chat.deleteAttachment")
+      (format "https://%sslack.com/api/chat.deleteAttachment"
+              (if (slack-team-enterprise-token team)
+                  (format "grid-%s.enterprise." (slack-team-name team))
+                ""))
       team
       :type "POST"
       :success on-success
