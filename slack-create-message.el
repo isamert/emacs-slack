@@ -33,7 +33,7 @@
 (require 'slack-attachment)
 
 (defun slack-reaction-create (payload)
-  (apply #'slack-reaction "reaction"
+  (apply #'make-instance 'slack-reaction
          (slack-collect-slots 'slack-reaction payload)))
 
 (defun slack-reply-broadcast-message-create (payload)
@@ -115,7 +115,7 @@
               (t (progn
                    (slack-log (format "Unknown Message Type: %s" payload)
                               team :level 'debug)
-                   (apply #'slack-message "unknown message"
+                   (apply #'make-instance 'slack-message
                           (slack-collect-slots 'slack-message payload))))))))
 
       (let ((message (create-message payload)))
