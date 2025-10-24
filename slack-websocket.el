@@ -306,6 +306,9 @@ Locking the operation via `slack--lock-user-list-update' to avoid
 This also closes unnecessary buffers and refresh message buffer contents."
   (let* ((team (slack-team-find team-id)))
     (slack-conversations-list-update team)
+    (slack-client-counts team
+                         #'(lambda (counts)
+                             (oset team counts counts)))
     ;; attempt at updating the user list in a delayed manner so to not hit user limit
     (run-with-timer 3 nil #'slack--update-user-list-with-lock
                     team)
