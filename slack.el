@@ -225,10 +225,15 @@ You can add it to append custom instructions that depend on context.")
     (slack-enable-modeline)))
 
 ;;;###autoload
-(defun slack-stop ()
+(defun slack-stop (force)
   "Quit all slack teams."
-  (interactive)
+  (interactive "P")
   (slack-ws-close)
+  (when force
+    ;; needed as fallback when refreshing credentials to cleanup old ones from local state
+    (message "Deleted all teams from cache: you need to redefine them." )
+    (setq slack-teams-by-token nil
+          slack-tokens-by-id nil))
   (run-hooks 'slack-before-quit-hook)
   (message "Slack stopped"))
 
