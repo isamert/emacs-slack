@@ -312,19 +312,20 @@
        (not (eq major-mode 'slack-thread-message-buffer-mode))))
 
 (cl-defmethod slack-message-body ((m slack-message) team)
-  (let ((use-blocks-p (and (not (oref team disable-block-format))
-                           (oref m blocks))))
-    (if use-blocks-p
-        (slack-unescape (mapconcat #'(lambda (bl)
-                                       (slack-block-to-string bl (list :team team)))
-                                   (oref m blocks)
-                                   "\n\n")
-                        team)
-      (if (oref m text)
-          (propertize (slack-unescape (oref m text) team)
-                      'face 'slack-message-output-text
-                      'slack-text-type 'mrkdwn)
-        ""))))
+  (if-let* ((blocks (and (not (oref team disable-block-format))
+                         (or (oref m blocks)
+                             (when-let* ((first-attachment (car (oref m attachments))))
+                               (oref first-attachment blocks))))))
+      (slack-unescape (mapconcat #'(lambda (bl)
+                                     (slack-block-to-string bl (list :team team)))
+                                 blocks
+                                 "\n\n")
+                      team)
+    (if (oref m text)
+        (propertize (slack-unescape (oref m text) team)
+                    'face 'slack-message-output-text
+                    'slack-text-type 'mrkdwn)
+      "")))
 
 (cl-defmethod slack-room-find ((this slack-message) team)
   (slack-room-find (oref this channel) team))

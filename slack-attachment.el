@@ -39,6 +39,7 @@
 
 (defclass slack-attachment ()
   ((fallback :initarg :fallback :initform nil)
+   (blocks :initarg :blocks :initform '())
    (title :initarg :title :initform nil)
    (title-link :initarg :title_link :initform nil)
    (pretext :initarg :pretext :initform nil)
@@ -167,6 +168,11 @@
         (plist-put payload :actions
                    (mapcar #'slack-attachment-action-create
                            (plist-get payload :actions))))
+
+  (setq payload
+        (plist-put payload :blocks
+                   (mapcar #'slack-create-layout-block
+                           (plist-get payload :blocks))))
 
   (when (numberp (plist-get payload :ts))
     (setq payload
