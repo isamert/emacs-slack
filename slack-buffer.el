@@ -864,6 +864,31 @@ Default to the current buffer."
 
     (slack-file-upload file "png" "image.png")))
 
+;; support drag and drop
+(defun slack--dnd-upload (uri action)
+  "Upload dropped file to current Slack buffer; return 'copy when handled."
+  (ignore action)
+  (when (and (boundp 'slack-current-buffer) slack-current-buffer)
+    (let* ((path (dnd-get-local-file-name uri t)))
+      (when (and path (file-exists-p path))
+        (condition-case err
+            (let* ((ext (or (file-name-extension path) "dat"))
+                   (tmp (make-temp-file "slack-dnd" nil (concat "." ext)))
+                   (room-id (oref (slack-buffer-room slack-current-buffer) id))
+                   (team (slack-buffer-team slack-current-buffer))
+                   (thread-ts (ignore-errors (oref slack-current-buffer thread-ts)))
+                   (comment (when current-prefix-arg
+                              (read-from-minibuffer "Message: "))))
+              (copy-file path tmp t)
+              (slack-file-upload-quick tmp room-id team comment thread-ts)
+              'copy)
+          (error
+           (message "Slack DnD upload failed: %s" (error-message-string err))
+           ;; Returning nil lets other handlers try, but we consumed it already.
+           'copy))))))
+(with-eval-after-load 'dnd
+  (add-to-list 'dnd-protocol-alist '("^file:" . slack--dnd-upload)))
+
 (defun slack-join-huddle (team-id room-id)
   "Start a huddle in room with ROOM-ID and team with TEAM-ID.
 Note this requires you are signed in on Slack in your default browser."
@@ -871,6 +896,7 @@ Note this requires you are signed in on Slack in your default browser."
                 (oref (nth 1 (slack-current-room-and-team)) id)
                 (oref (nth 0 (slack-current-room-and-team)) id)))
   (browse-url (format "https://app.slack.com/huddle/%s/%s" team-id room-id)))
+
 
 (provide 'slack-buffer)
 ;;; slack-buffer.el ends here
