@@ -306,9 +306,7 @@ Locking the operation via `slack--lock-user-list-update' to avoid
 This also closes unnecessary buffers and refresh message buffer contents."
   (let* ((team (slack-team-find team-id)))
     (slack-conversations-list-update team)
-    (slack-client-counts team
-                         #'(lambda (counts)
-                             (oset team counts counts)))
+    (slack-counts-update team)
     ;; attempt at updating the user list in a delayed manner so to not hit user limit
     (run-with-timer 3 nil #'slack--update-user-list-with-lock
                     team)
@@ -437,7 +435,8 @@ TEAM is one of `slack-teams'"
           (slack-cancel-notify-adandon-reconnect)
           (slack-ws-set-ping-timer ws #'slack-ws-ping (slack-team-id team))
           (slack-ws-resend ws team)
-          (slack-log "Slack Websocket Is Ready!" team :level 'info))
+          (slack-log "Slack Websocket Is Ready!" team :level 'info)
+          (slack-counts-update team))
          ((plist-get decoded-payload :reply_to)
           (slack-ws-handle-reply ws decoded-payload team))
          ((string= type "message")
@@ -970,6 +969,7 @@ all users, but for simplicity we take the first users."
                                                   team paths)))
                      (on-open ()
                        (slack-conversations-list-update team)
+                       (slack-counts-update team)
                        ;; (slack-user-list-update team)
                        (slack-dnd-status-team-info team)
                        (when slack-buffer-emojify
