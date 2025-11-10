@@ -886,8 +886,13 @@ Default to the current buffer."
            (message "Slack DnD upload failed: %s" (error-message-string err))
            ;; Returning nil lets other handlers try, but we consumed it already.
            'copy))))))
-(with-eval-after-load 'dnd
+
+(defun slack-dnd-ensure-first ()
+  "Make sure dnd-protocol-alist keeps slack first to avoid issues with projectile."
   (add-to-list 'dnd-protocol-alist '("^file:" . slack--dnd-upload)))
+
+(with-eval-after-load 'dnd
+  (add-hook 'slack-mode-hook 'slack-dnd-ensure-first))
 
 (defun slack-join-huddle (team-id room-id)
   "Start a huddle in room with ROOM-ID and team with TEAM-ID.
