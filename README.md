@@ -18,7 +18,7 @@ You can see some gifs on the [wiki](https://github.com/emacs-slack/emacs-slack/w
 If your token expires, you can use `slack-refresh-token` for a way to refresh interactively.
 
 ```elisp
-(use-package emacs-slack
+(use-package slack
   :bind (("C-c S K" . slack-stop)
          ("C-c S c" . slack-select-rooms)
          ("C-c S u" . slack-select-unread-rooms)
