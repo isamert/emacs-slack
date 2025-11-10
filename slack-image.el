@@ -102,12 +102,17 @@
                                        #'<)))
                         (cl-sort images compare :key
                                  #'(lambda (image) (caddr (car image))))))
+         (slack-image-help-echo (_window _string _pos)
+                                "RET: Open full image in another buffer")
          (propertize-image (image)
                            (concat (or pad "")
                                    (propertize "image"
                                                'slack-image-display image
                                                'display image
-                                               'face 'slack-profile-image-face))))
+                                               'face 'slack-profile-image-face
+                                               'mouse-face 'highlight
+                                               'keymap slack-image-keymap
+                                               'help-echo #'slack-image-help-echo))))
       (mapconcat #'propertize-image
                  (sort-images images)
                  "\n"))))
@@ -167,6 +172,49 @@
       (goto-char (point-min)))
 
     buf))
+
+;; Keymap and handler to open full-size image in a new buffer
+(defvar slack-image-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "RET") #'slack-image-open-at-point)
+    (define-key map [mouse-1] #'slack-image-open-at-point)
+    map))
+
+(defun slack-image--extract-image (display-prop)
+  "Extract the underlying image object from DISPLAY-PROP.
+DISPLAY-PROP may be a sliced image specification or an image object."
+  (cond
+   ;; Sliced image form: ((slice x y w h) IMAGE)
+   ((and (consp display-prop)
+         (consp (car display-prop))
+         (eq (caar display-prop) 'slice))
+    (cadr display-prop))
+   ;; Plain image object
+   (t display-prop)))
+
+(defun slack-image-open-at-point ()
+  "Open the full-size image for the thumbnail at point in another buffer."
+  (interactive)
+  (slack-if-let*
+      ((url (get-text-property (point) 'slack-file-url))
+       (url-not-blank-p (not (slack-string-blankp url)))
+       (path (and url (slack-image-path url)))
+       (team (and (bound-and-true-p slack-current-buffer)
+                  (ignore-errors (slack-buffer-team slack-current-buffer)))))
+      (cl-labels
+          ((open-file ()
+             (condition-case err
+                 (find-file-other-window path)
+               (error (user-error "Failed to open image: %s" (error-message-string err)))))
+           (on-success () (open-file)))
+        (if (file-exists-p path)
+            (open-file)
+          (slack-url-copy-file url path team
+                               :success #'on-success
+                               :token (slack-team-token team)
+                               :cookie (slack-team-cookie team))))
+    )
+  )
 
 (provide 'slack-image)
 ;;; slack-image.el ends here

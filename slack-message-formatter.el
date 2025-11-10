@@ -179,7 +179,11 @@
                       (slack-file-summary this ts team))
                     "<slack-file-summary error>"))
           (thumb (slack-image-string (slack-file-thumb-image-spec this))))
-      (slack-format-message body thumb))))
+      (slack-format-message
+       body
+       (when thumb
+         (propertize thumb
+                     'slack-file-url (oref this url-private-download)))))))
 
 (cl-defmethod slack-message-to-alert ((m slack-message) team)
   (with-slots (text attachments files) m
