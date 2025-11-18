@@ -120,10 +120,12 @@
             (cons 'channel (cons nil 0))))))
 
 (cl-defmethod slack-counts-update ((team slack-team))
+  "Update counts for TEAM."
   (slack-client-counts team
                        #'(lambda (counts)
                            (oset team counts counts)
-                           (slack-update-modeline))))
+                           (when (slack-team-modeline-enabledp team)
+                             (slack-update-modeline)))))
 
 (provide 'slack-modeline)
 ;;; slack-modeline.el ends here

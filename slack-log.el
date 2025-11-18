@@ -106,6 +106,12 @@ One of 'info, 'debug"
 (defun slack-log-buffer-name (team)
   (format "*slack-log: %s*" (slack-team-name team)))
 
+(defun slack-log-set-level (level)
+  "Set `slack-log-level' to LEVEL."
+  (interactive
+   (list (intern (completing-read "Level:" slack-log-levels))))
+  (setq slack-log-level level))
+
 (defun slack-log-open-buffer ()
   (interactive)
   (let ((team (slack-team-select t t)))
