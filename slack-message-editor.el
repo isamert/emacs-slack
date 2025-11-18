@@ -53,20 +53,15 @@
   (slack-buffer-enable-emojify))
 
 (defun slack-message-share--send (team room ts msg)
-  (let* ((slack-room-list (or (and (object-of-class-p room 'slack-channel)
-                                   (slack-message-room-list team))
-                              (list (cons (slack-room-display-name room team)
-                                          room))))
+  (let* ((slack-room-list (slack-message-room-list team))
          (share-channel-id (oref (slack-select-from-list
                                      (slack-room-list
-                                      "Select Channel: "
-                                      :initial
-                                      (slack-room-name room team)))
+                                      "Select Channel: "))
                                  id)))
     (cl-labels
         ((on-success (&key data &allow-other-keys)
-                     (slack-request-handle-error
-                      (data "slack-message-share"))))
+           (slack-request-handle-error
+            (data "slack-message-share"))))
       (slack-request
        (slack-request-create
         slack-share-url
