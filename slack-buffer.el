@@ -24,6 +24,7 @@
 
 ;;; Code:
 
+(require 'button)
 (require 'color)
 (require 'eieio)
 (require 'lui)
@@ -467,6 +468,13 @@
                                    (list 'face face-or-func)))))
         (setq cur-point end)))))
 
+(defun slack-kill-button-url ()
+  "Kill button url at point."
+  (interactive)
+  (let ((url (car (button-get (button-at (point)) 'lui-button-arguments))))
+    (message "Saved button url in kill ring: %s" url)
+    (kill-new url)))
+
 (defun slack-buffer-buttonize-link ()
   (let ((regex "\\(<\\)\\(http://\\|https://\\)\\(.*?\\)\\(?:|\\([[:ascii:][:nonascii:]]*?\\)\\)?\\(\\)>"))
     (ignore-errors
@@ -479,12 +487,19 @@
                (replace (or (match-string 4) url)))
           (replace-match replace nil)
           (unless disabled
-            (make-button (1- url-begin)
-                         (+ (1- url-begin) (length replace))
-                         'type 'lui-button
-                         'action 'lui-button-activate
-                         'lui-button-function 'browse-url
-                         'lui-button-arguments (list url))))))))
+            (prog1 (make-button (1- url-begin)
+                                (+ (1- url-begin) (length replace))
+                                'type 'lui-button
+                                'action 'lui-button-activate
+                                'lui-button-function 'browse-url
+                                'lui-button-arguments (list url))
+              ;; add local keymap to kill url instead of just opening with RET
+              (put-text-property (1- url-begin)
+                                 (+ (1- url-begin) (length replace))
+                                 'local-map
+                                 (let ((map (make-sparse-keymap)))
+                                   (define-key map (kbd "w") 'slack-kill-button-url)
+                                   map)))))))))
 
 (defun slack-buffer-show-typing-p (buffer)
   (cl-case slack-typing-visibility
