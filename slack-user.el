@@ -478,7 +478,7 @@ https://github.com/ErikKalkoken/slackApiDoc/blob/master/users.prefs.get.md"
                         (let* ((prefs (plist-get data :prefs))
                                (muted-channels
                                 (seq-map
-                                 #'car
+                                 (lambda (channel) (symbol-name (car channel)))
                                  (seq-filter
                                   (lambda (channel) (alist-get 'muted (cdr channel)))
                                   (alist-get 'channels (json-parse-string
