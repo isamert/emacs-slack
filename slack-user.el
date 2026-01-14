@@ -32,6 +32,7 @@
 (require 'slack-dnd-status)
 (require 'slack-bot)
 (require 'map)
+(require 'seq)
 
 (defvar slack-completing-read-function)
 
@@ -475,12 +476,16 @@ https://github.com/ErikKalkoken/slackApiDoc/blob/master/users.prefs.get.md"
                 (lambda (&key data &allow-other-keys)
                   (setf (oref team user-prefs)
                         (let* ((prefs (plist-get data :prefs))
-                               ;; Parse muted_channels
-                               (muted-channels (thread-first
-                                                 prefs
-                                                 (plist-get :muted_channels)
-                                                 (or "")
-                                                 (string-split "," t))))
+                               (muted-channels
+                                (seq-map
+                                 #'car
+                                 (seq-filter
+                                  (lambda (channel) (alist-get 'muted (cdr channel)))
+                                  (alist-get 'channels (json-parse-string
+                                                        (plist-get prefs :all_notifications_prefs)
+                                                        :object-type 'alist
+                                                        :array-type 'list
+                                                        :false-object nil))))))
                           (map-insert prefs :muted_channels muted-channels)))))))))
 
 (provide 'slack-user)
